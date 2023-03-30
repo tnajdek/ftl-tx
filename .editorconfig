@@ -6,3 +6,7 @@ indent_style = tab
 
 [*.svg]
 indent_style = tab
+
+[test/ftl-to-json.test.js]
+indent_style = space
+indent_size = 4

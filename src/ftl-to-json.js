@@ -2,8 +2,14 @@ import { parse } from "@fluent/syntax";
 
 function processElement(element, ftl) {
     if (element.type === 'Placeable' && element.expression.type === 'SelectExpression') {
-        return `{$${element.expression.selector.id.name}, plural, ${element.expression.variants.map(v => `${ftl.slice(v.key.span.start, v.key.span.end)} {${v.value.elements.map(e => processElement(e, ftl)).join('')}}`).join(' ')}}`;
+        return `{${element.expression.selector.id.name}, plural, ${element.expression.variants.map(v => `${ftl.slice(v.key.span.start, v.key.span.end)} {${v.value.elements.map(e => processElement(e, ftl)).join('')}}`).join(' ')}}`;
     }
+	if (element.type === 'Placeable' && element.expression.type === 'VariableReference') {
+		return `{ ${element.expression.id.name} }`;
+	}
+	if (element.type === 'Placeable' && element.expression.type === 'TermReference') {
+		return `{ FTLREF_${element.expression.id.name.replaceAll('-', '_')} }`;
+	}
     return ftl.slice(element.span.start, element.span.end);
 }
 
