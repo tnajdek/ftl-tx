@@ -66,6 +66,21 @@ describe('Two-way conversions', () => {
             }
         ));
     });
+    it('should convert a message with plurals with number literals', () => {
+        assert.deepEqual(convert(
+`string-with-plurals =
+    { $num ->
+        [0] sadly no dogs
+        [1] a dog
+        [2] a pair of doggos
+       *[other] { $num } dogs
+    }`,
+            {
+                'string-with-plurals': { string: '{num, plural, =0 {sadly no dogs} =1 {a dog} =2 {a pair of doggos} other {{ num } dogs}}' }
+            }
+        ));
+    });
+
     it('should include message-level comments, if prefixed with tx:', () => {
         assert.deepEqual(convert(
 `# tx: This comment is included

@@ -2,7 +2,17 @@ import { parse } from "@fluent/syntax";
 
 function processElement(element, ftl) {
     if (element.type === 'Placeable' && element.expression.type === 'SelectExpression') {
-        return `{${element.expression.selector.id.name}, plural, ${element.expression.variants.map(v => `${ftl.slice(v.key.span.start, v.key.span.end)} {${v.value.elements.map(e => processElement(e, ftl)).join('')}}`).join(' ')}}`;
+		const ICUVariants = element.expression.variants.map(v => {
+			switch (v.key.type) {
+				case 'NumberLiteral':
+					return `=${v.key.value} {${v.value.elements.map(e => processElement(e, ftl)).join('')}}`;
+				default:
+				case 'Identifier':
+					return `${ftl.slice(v.key.span.start, v.key.span.end)} {${v.value.elements.map(e => processElement(e, ftl)).join('')}}`;
+			}
+		}).join(' ');
+
+		return `{${element.expression.selector.id.name}, plural, ${ICUVariants}}`;
     }
 	if (element.type === 'Placeable' && element.expression.type === 'VariableReference') {
 		return `{ ${element.expression.id.name} }`;
