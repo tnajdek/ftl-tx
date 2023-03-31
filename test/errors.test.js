@@ -1,8 +1,8 @@
 /* eslint-env mocha */
 // @NOTE: This file uses spaces for indentation, not tabs.
 //        This is because FTL requires spaces for indentation
-//        and this file contains ftl strings. Changing indentation
-//        to tabs WILL BREAK the tests.
+//        and this file contains ftl strings. 
+//        Changing indentation WILL BREAK the tests.
 
 import { assert } from 'chai';
 import { JSONToFtl } from '../src/json-to-ftl.js';

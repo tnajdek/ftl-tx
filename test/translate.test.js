@@ -1,14 +1,14 @@
 /* eslint-env mocha */
 // @NOTE: This file uses spaces for indentation, not tabs.
 //        This is because FTL requires spaces for indentation
-//        and this file contains ftl strings. Changing indentation
-//        to tabs WILL BREAK the tests.
+//        and this file contains ftl strings. 
+//        Changing indentation WILL BREAK the tests.
+
 import { assert } from 'chai';
 import { ftlToJSON } from '../src/ftl-to-json.js';
 import { JSONToFtl } from '../src/json-to-ftl.js';
 
 function convert(ftl, json) {
-    // ftl = ftl.replace(/^(?:\t)+/gm, (tabs) => '    '.repeat(tabs.length));
     assert.deepEqual(ftlToJSON(ftl), json, 'FTL -> JSON');
     assert.equal(JSONToFtl(json).trim(), ftl.trim(), 'JSON -> FTL');
 }
@@ -91,6 +91,29 @@ describe('Translate', () => {
     }`,
             {
                 'string-with-select': { string: '{animal, select, dog {woof!} cow {moo} other {meh}}' }
+            }
+        );
+    });
+
+    it('should convert a message with nested plurals and select', () => {
+        convert(
+`pets =
+    I have { $pet ->
+        [dog]
+            { $num ->
+                [0] no dogs
+                [1] a dog
+               *[other] many doggos
+            }
+       *[rat]
+            { $num ->
+                [0] no rats
+                [1] a rat
+               *[other] an infestation
+            }
+    }`,
+            {
+                'pets': { string: 'I have {pet, select, dog {{num, plural, =0 {no dogs} =1 {a dog} other {many doggos}}} rat {{num, plural, =0 {no rats} =1 {a rat} other {an infestation}}}}' }
             }
         );
     });
