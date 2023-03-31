@@ -1,10 +1,11 @@
-# ftl-tx translator
+[![CI](https://github.com/tnajdek/ftl-tx/actions/workflows/ci.yml/badge.svg)](https://github.com/tnajdek/ftl-tx/actions/workflows/ci.yml) [![Coverage Status](https://coveralls.io/repos/github/tnajdek/ftl-tx/badge.svg?branch=master)](https://coveralls.io/github/tnajdek/ftl-tx?branch=master) [![npm version](https://img.shields.io/npm/v/ftl-tx)](https://www.npmjs.com/package/ftl-tx)
+# ftl-tx
 
-Simple library that converts [.ftl](https://projectfluent.org/) into structured JSON that [transifex](https://www.transifex.com/) can understand. It also translates JSON back to .ftl, presumable after it has been translated.
+Simple library that converts [.ftl](https://projectfluent.org/) to/from structured JSON with ICU Messages that [transifex](https://www.transifex.com/) can understand.
 
-It has many limitations (see below)
+It has many limitations (see below).
 
-# Usage
+## Usage
 
 ````js
 import { ftlToJSON, JSONToFtl } from 'ftl-tx';
@@ -13,7 +14,7 @@ console.assert(JSONToFtl(ftlToJSON(ftl)).trim() === ftl);
 console.log(ftlToJSON(ftl));
 ````
 
-# Limitations
+## Limitations
 A limited set of features is supported, specifically:
 
 * attributes are translated into new messages, with the attribute name concatenated with the message key to create a new message key.
@@ -22,6 +23,6 @@ A limited set of features is supported, specifically:
 * [terms](https://projectfluent.org/fluent/guide/terms.html) are converted to variables, prefixed with `FTLREF_` and with "-" replaced as "_"
 * All comments are ignored, except for [message-bound comments](https://projectfluent.org/fluent/guide/comments.html) prefixed `tx: `
 
-# Examples
+## Examples
 
 See `tests/translate.test.js` for examples.
