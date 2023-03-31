@@ -81,6 +81,20 @@ describe('Translate', () => {
         );
     });
 
+    it('should convert a message with select', () => {
+        convert(
+`string-with-select =
+    { $animal ->
+        [dog] woof!
+        [cow] moo
+       *[other] meh
+    }`,
+            {
+                'string-with-select': { string: '{animal, select, dog {woof!} cow {moo} other {meh}}' }
+            }
+        );
+    });
+
     it('should include message-level comments, if prefixed with tx:', () => {
         convert(
 `# tx: This comment is included

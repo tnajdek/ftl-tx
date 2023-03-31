@@ -1,4 +1,5 @@
 import { serialize, Attribute, Comment, Identifier, Message, NumberLiteral, Pattern, Placeable, Resource, SelectExpression, TermReference, TextElement, VariableReference, Variant } from "@fluent/syntax";
+import { checkForNonPlurals } from "./common.js";
 
 
 function parseString(string) {
@@ -39,12 +40,10 @@ function parseString(string) {
 			);
 
 			if (selectType === 'plural') {
-				const allowedPlurals = ['zero', 'one', 'two', 'few', 'many', 'other'];
-				ftlVariants.forEach(v => {
-					if (v.key.type !== 'NumberLiteral' && !allowedPlurals.includes(v.key.name)) {
-						throw new Error(`Invalid plural variant: ${v.key.name} in ${string}`);
-					}
-				});
+				const notLikePlural = checkForNonPlurals(ftlVariants);
+				if (notLikePlural) {
+					throw new Error(`Invalid plural variant: ${notLikePlural.key.name} in ${string}`);
+				}
 			}
 
 			const defaultVariant = ftlVariants.find(v => v.key.name === 'other') ?? ftlVariants.find(v => v.key.name === lastSelector) ?? ftlVariants[0];

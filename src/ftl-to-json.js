@@ -1,4 +1,5 @@
 import { parse } from "@fluent/syntax";
+import { checkForNonPlurals } from "./common.js";
 
 function processElement(element, ftl) {
     if (element.type === 'Placeable' && element.expression.type === 'SelectExpression') {
@@ -12,7 +13,8 @@ function processElement(element, ftl) {
 			}
 		}).join(' ');
 
-		return `{${element.expression.selector.id.name}, plural, ${ICUVariants}}`;
+		const selectType = checkForNonPlurals(element.expression.variants) ? 'select' : 'plural';
+		return `{${element.expression.selector.id.name}, ${selectType}, ${ICUVariants}}`;
     }
 	if (element.type === 'Placeable' && element.expression.type === 'VariableReference') {
 		return `{ ${element.expression.id.name} }`;
