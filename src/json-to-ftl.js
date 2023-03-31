@@ -1,4 +1,4 @@
-import { serialize, Attribute, Comment, Identifier, Message, Pattern, Placeable, Resource, SelectExpression, TermReference, TextElement, VariableReference, Variant } from "@fluent/syntax";
+import { serialize, Attribute, Comment, Identifier, Message, NumberLiteral, Pattern, Placeable, Resource, SelectExpression, TermReference, TextElement, VariableReference, Variant } from "@fluent/syntax";
 
 
 function parseString(string) {
@@ -9,7 +9,7 @@ function parseString(string) {
 	
 	while ((match = pattern.exec(string)) !== null) {
 		const [bracketedContent,] = match;
-		const pluralRegex = /^\{(\w+),\s*plural,\s*((?:(?!^\{).)*)\}$/s;
+		const pluralRegex = /^\{\s*(\w+)\s*,\s*(plural|select)\s*,\s*((?:(?!^\{).)*)\}$/s;
 
 		if (match.index > start) {
 			elements.push(new TextElement(string.slice(start, match.index)));
@@ -17,21 +17,37 @@ function parseString(string) {
 		start = pattern.lastIndex;
 
 		if (pluralRegex.test(bracketedContent)) {
-			const [, variable, variants] = bracketedContent.match(pluralRegex);
+			const [, variable, selectType, variants] = bracketedContent.match(pluralRegex);
 			const variantRegex = /(\w+)\s+({(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{[^{}]*})*})*})*})/gm;
 			let match;
+			let lastSelector = null;
 			const matchedVariants = {};
 			while ((match = variantRegex.exec(variants)) !== null) {
-				const [, selector, text] = match;
+				let [, selector, text] = match;
 				matchedVariants[selector] = text;
+				lastSelector = selector;
 			}
 			const ftlVariants = Object.entries(matchedVariants).map(
-				([selector, text]) => new Variant(
-					new Identifier(selector), new Pattern(parseString(text.slice(1, -1)))
-				)
+				([selector, text]) => {
+					if (selectType === 'plural' && selector == parseInt(selector, 10)) {
+						selector = parseInt(selector, 10);
+					}
+					return new Variant(
+					typeof selector === 'number' ? new NumberLiteral(selector) : new Identifier(selector),
+					new Pattern(parseString(text.slice(1, -1)))
+				)}
 			);
 
-			const defaultVariant = ftlVariants.find(v => v.key.name === 'other') ?? ftlVariants[ftlVariants.length - 1];
+			if (selectType === 'plural') {
+				const allowedPlurals = ['zero', 'one', 'two', 'few', 'many', 'other'];
+				ftlVariants.forEach(v => {
+					if (v.key.type !== 'NumberLiteral' && !allowedPlurals.includes(v.key.name)) {
+						throw new Error(`Invalid plural variant: ${v.key.name} in ${string}`);
+					}
+				});
+			}
+
+			const defaultVariant = ftlVariants.find(v => v.key.name === 'other') ?? ftlVariants.find(v => v.key.name === lastSelector) ?? ftlVariants[0];
 			defaultVariant.default = true;
 
 			elements.push(new Placeable(
