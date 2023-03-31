@@ -125,4 +125,27 @@ string-with-comment = This one has comment`,
             { 'string-with-comment': { string: 'This one has comment', developer_comment: 'This comment is included' } }
         );
     });
+
+    it('should convert a message with escaped { and }', () => {
+        convert(
+            `opening-brace = This message features an opening curly brace: {"{"}.`,
+            { 'opening-brace': { string: `This message features an opening curly brace: '{'.` } }
+        );
+
+        convert(
+            `opening-brace = This message features two opening curly brace, first: {"{"}, second: {"{"}.`,
+            { 'opening-brace': { string: `This message features two opening curly brace, first: '{', second: '{'.` } }
+        );
+
+        convert(
+            `opening-brace = This message with a { $var } features an opening curly brace: {"{"}.`,
+            { 'opening-brace': { string: `This message with a { var } features an opening curly brace: '{'.` } }
+        );
+
+        convert(
+            `closing-brace = This message features a closing curly brace: {"}"}.`,
+            { 'closing-brace': { string: `This message features a closing curly brace: '}'.` } }
+        );
+    });
+
 });

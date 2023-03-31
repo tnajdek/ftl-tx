@@ -6,6 +6,7 @@
 
 import { assert } from 'chai';
 import { JSONToFtl } from '../src/json-to-ftl.js';
+import { ftlToJSON } from '../src/ftl-to-json.js';
 
 
 describe('Recoverable', () => {
@@ -71,5 +72,12 @@ describe('Recoverable', () => {
        *[0] { $num } files
         [1] { $num } file
     }.`);
+    });
+
+    it('should convert a message with a string literal', () => {
+        assert.deepEqual(
+            ftlToJSON(`string-with-escaped = This message features {"a string"} literal`),
+            { 'string-with-escaped': { string: 'This message features a string literal' } }
+        );
     });
 });

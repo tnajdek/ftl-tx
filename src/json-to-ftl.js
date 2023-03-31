@@ -1,7 +1,6 @@
 import { serialize, Attribute, Comment, Identifier, Message, NumberLiteral, Pattern, Placeable, Resource, SelectExpression, TermReference, TextElement, VariableReference, Variant } from "@fluent/syntax";
 import { checkForNonPlurals } from "./common.js";
 
-
 function parseString(string) {
 	const elements = [];
 	const pattern = /{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{[^{}]*})*})*})*}/g;
@@ -57,6 +56,7 @@ function parseString(string) {
 			);
 		} else {
 			const varName = bracketedContent.trim().slice(1, -1).trim();
+
 			if (varName.startsWith('FTLREF_')) {
 				elements.push(new Placeable(new TermReference(new Identifier(varName.slice(7).replaceAll('_', '-')))));
 			} else {
@@ -68,7 +68,7 @@ function parseString(string) {
 	}
 
 	if (start < string.length) {
-		elements.push(new TextElement(string.slice(start)));
+		elements.push(new TextElement(string.slice(start).replaceAll(/'?({|})'?/g, '{"$1"}')));
 	}
 
 	return elements;

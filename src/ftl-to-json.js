@@ -22,6 +22,10 @@ function processElement(element, ftl) {
 	if (element.type === 'Placeable' && element.expression.type === 'TermReference') {
 		return `{ FTLREF_${element.expression.id.name.replaceAll('-', '_')} }`;
 	}
+    if (element.type === 'Placeable' && element.expression.type === 'StringLiteral') {
+        return element.expression.value.replaceAll(/({|})/g, `'$1'`);
+    }
+
     return ftl.slice(element.span.start, element.span.end);
 }
 
