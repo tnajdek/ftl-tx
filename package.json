@@ -1,15 +1,21 @@
 {
   "name": "ftl-to-json",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "",
   "main": "index.js",
   "type": "module",
   "scripts": {
     "test": "c8 mocha --parallel",
-    "test-watch": "mocha -w --parallel"
+    "test-watch": "mocha -w --parallel",
+    "lint": "eslint \"src/*.js\"",
+    "coverage": "c8 --reporter=html --reporter=text mocha --parallel",
+    "coverage-make-lcov": "c8 report --reporter=text-lcov > ./coverage/lcov.info"
   },
   "author": "Tom Najdek",
   "license": "AGPL-3.0",
+  "files": [
+    "src/**/*"
+  ],
   "dependencies": {
     "@fluent/syntax": "^0.19.0"
   },
