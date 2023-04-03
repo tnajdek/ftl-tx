@@ -176,4 +176,60 @@ string-with-comment = This one has comment`,
         );
     });
 
+    it('should convert a message with an empty variant value', () => {
+        convert(
+`empty-variant =
+    This message has an empty variant value: { $var ->
+        [empty] { "" }
+       *[other] { $var }
+    }`,
+            { 'empty-variant': { string: `This message has an empty variant value: {var, select, empty {} other {{ var }}}` } }
+        );
+    });
+
+    // this requires nesting_limit >= 8 (default is 10), see json-to-ftl.js for details
+    it('should convert a message with 5 levels of nesting', () => {
+        convert(
+`-dog-name = Pixel
+deeply-nested =
+    I have { $num ->
+        [0]
+            no { $thing ->
+                [pet]
+                    { $pet ->
+                        [dog] dogs :(
+                       *[other] pets
+                    }
+               *[other] things
+            }
+        [1]
+            { $thing ->
+                [pet]
+                    a pet. { $pet ->
+                        [dog]
+                            It's a dog. { $show_name ->
+                                [true] His name is { -dog-name }!
+                               *[false] { "" }
+                            }
+                       *[other] It's not a dog :(
+                    }
+               *[other] a thing. It's not a pet.
+            }
+       *[other]
+            many { $thing ->
+                [pet] pets
+               *[other] things
+            }
+    }`,
+            {
+                'deeply-nested': {
+                    string: "I have {num, plural, =0 {no {thing, select, pet {{pet, select, dog {dogs :(} other {pets}}} other {things}}} =1 {{thing, select, pet {a pet. {pet, select, dog {It's a dog. {show_name, select, true {His name is { FTLREF_dog_name }!} false {}}} other {It's not a dog :(}}} other {a thing. It's not a pet.}}} other {many {thing, select, pet {pets} other {things}}}}",
+                    terms: {
+                        'dog-name': 'Pixel'
+                    }
+                }
+            }
+        );
+    });
+
 });

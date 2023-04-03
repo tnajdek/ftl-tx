@@ -1,11 +1,14 @@
 import { Attribute, Comment, Identifier, Message, NumberLiteral, Pattern, Placeable, Resource,
-	SelectExpression, serialize, Term, TermReference, TextElement, VariableReference, Variant
+	SelectExpression, serialize, StringLiteral, Term, TermReference, TextElement, VariableReference, Variant
 } from "@fluent/syntax";
 import { checkForNonPlurals } from "./common.js";
 
-function parseString(string) {
+
+// nesting_limit is the maximum number of nested brackets allowed in a single string
+// and not the level of .ftl nesting which will be less than that
+function parseString(string, { nesting_limit = 10 } = {}) {
 	const elements = [];
-	const pattern = /{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{[^{}]*})*})*})*})*}/g;
+	const pattern = new RegExp(`${'{(?:[^{}]|'.repeat(nesting_limit)}{[^{}]*}${')*}'.repeat(nesting_limit)}`, 'g');
 	let start = 0;
 	let match;
 	
@@ -20,7 +23,7 @@ function parseString(string) {
 
 		if (pluralRegex.test(bracketedContent)) {
 			const [, variable, selectType, variants] = bracketedContent.match(pluralRegex);
-			const variantRegex = /(\w+)\s+({(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{[^{}]*})*})*})*})/gm;
+			const variantRegex = new RegExp(`(\\w+)\\s+(${'{(?:[^{}]|'.repeat(nesting_limit)}{[^{}]*}${')*}'.repeat(nesting_limit)})`, 'gm');
 			let match;
 			let lastSelector = null;
 			const matchedVariants = {};
@@ -34,9 +37,11 @@ function parseString(string) {
 					if (selectType === 'plural' && selector == parseInt(selector, 10)) {
 						selector = parseInt(selector, 10);
 					}
+					const textNoBrackets = text.slice(1, -1);
+
 					return new Variant(
 					typeof selector === 'number' ? new NumberLiteral(selector) : new Identifier(selector),
-					new Pattern(parseString(text.slice(1, -1)))
+						textNoBrackets.length ? new Pattern(parseString(textNoBrackets)) : new Pattern([new Placeable(new StringLiteral(''))])
 				)}
 			);
 
