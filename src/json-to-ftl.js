@@ -1,9 +1,11 @@
-import { serialize, Attribute, Comment, Identifier, Message, NumberLiteral, Pattern, Placeable, Resource, SelectExpression, TermReference, TextElement, VariableReference, Variant } from "@fluent/syntax";
+import { Attribute, Comment, Identifier, Message, NumberLiteral, Pattern, Placeable, Resource,
+	SelectExpression, serialize, Term, TermReference, TextElement, VariableReference, Variant
+} from "@fluent/syntax";
 import { checkForNonPlurals } from "./common.js";
 
 function parseString(string) {
 	const elements = [];
-	const pattern = /{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{[^{}]*})*})*})*}/g;
+	const pattern = /{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{[^{}]*})*})*})*})*}/g;
 	let start = 0;
 	let match;
 	
@@ -76,6 +78,7 @@ function parseString(string) {
 
 export function JSONToFtl(json) {
 	const ftl = new Resource([]);
+	const termsMap = new Map();
 	for (const key in json) {
 		const attr = key.match(/\.([^.]+)$/)?.[1];
 		const msgName = attr ? key.slice(0, -attr.length - 1) : key;
@@ -84,11 +87,24 @@ export function JSONToFtl(json) {
 		const elements = parseString(json[key]?.string);
 		const pattern = new Pattern(elements);
 		const comment = json[key]?.developer_comment ? new Comment(`tx: ${json[key].developer_comment}`) : null;
+		const terms = json[key]?.terms;
+		if (terms) {
+			Object.entries(terms).map(([term, value]) => termsMap.set(term, value));
+		}
 		if(attr) {
 			ftl.body.find(m => m.id.name === msgName)?.attributes.push(new Attribute(attrID, pattern)) || ftl.body.push(new Message(msgID, null, [new Attribute(attrID, pattern)], comment));
 		} else {
 			ftl.body.push(new Message(msgID, pattern, [], comment));
 		}
 	}
+	const termKeys = [...termsMap.keys()];
+	termKeys.sort().reverse(); // since we're unshifting at the begining of the .ftl we need to start from the end, hence reverse()
+	for (const term of termKeys) {
+		const termID = new Identifier(term);
+		const termElements = parseString(termsMap.get(term));
+		const termPattern = new Pattern(termElements);
+		ftl.body.unshift(new Term(termID, termPattern))
+	}
+
 	return serialize(ftl);
 }

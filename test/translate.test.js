@@ -40,29 +40,51 @@ describe('Translate', () => {
         );
     });
 
-    it('should convert a message with a reference', () => {
+    it('should convert a message with references', () => {
         convert(
-            `string-with-ref = This is { -my-foo-ref } in a string`,
-            { 'string-with-ref': { string: 'This is { FTLREF_my_foo_ref } in a string' } }
+`-bar = 42
+-my-foo-ref = foo
+string-with-ref = This is { -my-foo-ref } in a string. The answer is { -bar }`,
+            {
+                'string-with-ref': {
+                    string: 'This is { FTLREF_my_foo_ref } in a string. The answer is { FTLREF_bar }',
+                    terms: {
+                        'bar': '42',
+                        'my-foo-ref': 'foo'
+                    }
+                }
+            }
         );
     });
 
     it('should convert a message with variables and references', () => {
         convert(
-            `string-with-both = { $foo } is here, { $bar } is there is no { -moo-boo }`,
-            { 'string-with-both': { string: '{ foo } is here, { bar } is there is no { FTLREF_moo_boo }' } }
+`-moo-boo = moo-boo
+string-with-both = { $foo } is here, { $bar } is there is no { -moo-boo }`,
+            { 'string-with-both': {
+                string: '{ foo } is here, { bar } is there is no { FTLREF_moo_boo }',
+                terms: {
+                    'moo-boo': 'moo-boo'
+                }
+            } }
         );
     });
 
     it('should convert a message with plurals', () => {
         convert(
-`string-with-plurals =
+`-my-app = Doggo App
+string-with-plurals =
     I have { $num ->
         [one] { $num } file
        *[other] { $num } files
     } on my { $drive } in { -my-app }.`,
             { 
-                'string-with-plurals': { string: 'I have {num, plural, one {{ num } file} other {{ num } files}} on my { drive } in { FTLREF_my_app }.' }
+                'string-with-plurals': {
+                    string: 'I have {num, plural, one {{ num } file} other {{ num } files}} on my { drive } in { FTLREF_my_app }.',
+                    terms: {
+                        'my-app': 'Doggo App'
+                    }
+                }
             }
         );
     });
@@ -95,14 +117,15 @@ describe('Translate', () => {
         );
     });
 
-    it('should convert a message with nested plurals and select', () => {
+    it('should convert a message with nested plurals and select, and a reference', () => {
         convert(
-`pets =
+`-dog-name = Pixel
+pets =
     I have { $pet ->
         [dog]
             { $num ->
                 [0] no dogs
-                [1] a dog
+                [1] a dog named { -dog-name }
                *[other] many doggos
             }
        *[rat]
@@ -113,7 +136,12 @@ describe('Translate', () => {
             }
     }`,
             {
-                'pets': { string: 'I have {pet, select, dog {{num, plural, =0 {no dogs} =1 {a dog} other {many doggos}}} rat {{num, plural, =0 {no rats} =1 {a rat} other {an infestation}}}}' }
+                'pets': {
+                    string: 'I have {pet, select, dog {{num, plural, =0 {no dogs} =1 {a dog named { FTLREF_dog_name }} other {many doggos}}} rat {{num, plural, =0 {no rats} =1 {a rat} other {an infestation}}}}',
+                    terms: {
+                        'dog-name': 'Pixel'
+                    }
+                }
             }
         );
     });

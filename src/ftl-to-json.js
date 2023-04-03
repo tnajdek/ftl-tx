@@ -1,15 +1,15 @@
 import { parse } from "@fluent/syntax";
 import { checkForNonPlurals } from "./common.js";
 
-function processElement(element, ftl) {
+function processElement(element, ftl, usedTerms = []) {
     if (element.type === 'Placeable' && element.expression.type === 'SelectExpression') {
 		const ICUVariants = element.expression.variants.map(v => {
 			switch (v.key.type) {
 				case 'NumberLiteral':
-					return `=${v.key.value} {${v.value.elements.map(e => processElement(e, ftl)).join('')}}`;
+                    return `=${v.key.value} {${v.value.elements.map(e => processElement(e, ftl, usedTerms)).join('')}}`;
 				default:
 				case 'Identifier':
-					return `${ftl.slice(v.key.span.start, v.key.span.end)} {${v.value.elements.map(e => processElement(e, ftl)).join('')}}`;
+                    return `${ftl.slice(v.key.span.start, v.key.span.end)} {${v.value.elements.map(e => processElement(e, ftl, usedTerms)).join('')}}`;
 			}
 		}).join(' ');
 
@@ -20,6 +20,7 @@ function processElement(element, ftl) {
 		return `{ ${element.expression.id.name} }`;
 	}
 	if (element.type === 'Placeable' && element.expression.type === 'TermReference') {
+        usedTerms.push(element.expression.id.name);
 		return `{ FTLREF_${element.expression.id.name.replaceAll('-', '_')} }`;
 	}
     if (element.type === 'Placeable' && element.expression.type === 'StringLiteral') {
@@ -32,18 +33,23 @@ function processElement(element, ftl) {
 export function ftlToJSON(ftl) {    
     const res = parse(ftl);
     const json = {};
+    const terms = {};
     res.body.forEach((entry) => {
-        if (entry?.type === 'Message') {
+        if (entry?.type === 'Term') {
+            terms[entry.id.name] = entry.value.elements.map(e => processElement(e, ftl)).join('');
+        } else if (entry?.type === 'Message') {
+            const usedTerms = [];
             if (entry.value?.type === 'Pattern') {
-                ftl.slice()
+                const string = entry.value.elements.map(e => processElement(e, ftl, usedTerms)).join('');
                 json[entry.id.name] = {
-                    string: entry.value.elements.map(e => processElement(e, ftl)).join(''),
-                    ...(entry.comment?.content.startsWith('tx:') ? { developer_comment: entry.comment.content.slice(3).trim() } : {})
+                    string,
+                    ...(entry.comment?.content.startsWith('tx:') ? { developer_comment: entry.comment.content.slice(3).trim() } : {}),
+                    ...(usedTerms.length ? { terms: Object.fromEntries(usedTerms.map(t => ([t, terms[t]]))) } : {})
                 };
             }
             if (entry.attributes.length) {
                 entry.attributes.forEach((attr) => {
-                    json[`${entry.id.name}.${attr.id.name}`] = { string: attr.value.elements.map(e => processElement(e, ftl)).join('') };
+                    json[`${entry.id.name}.${attr.id.name}`] = { string: attr.value.elements.map(e => processElement(e, ftl, usedTerms)).join('') };
                 });
             }
         }
