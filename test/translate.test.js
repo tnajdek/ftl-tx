@@ -57,6 +57,41 @@ string-with-ref = This is { -my-foo-ref } in a string. The answer is { -bar }`,
         );
     });
 
+    it('should convert a message with references in attributes and include a comment', () => {
+        convert(
+`-bar = 42
+-my-foo-ref = foo
+# tx: This comment applies to attributes as well
+string-with-ref = This is { -my-foo-ref }.
+    .label = This is { -bar } in a string. It also has a variable { $var }.
+    .title = This is { -my-foo-ref } in a string. Bar is { -bar }. It also has a variable { $var }.`,
+            {
+                'string-with-ref': {
+                    string: 'This is { FTLREF_my_foo_ref }.',
+                    developer_comment: 'This comment applies to attributes as well',
+                    terms: {
+                        'my-foo-ref': 'foo'
+                    }
+                },
+                'string-with-ref.label': {
+                    string: 'This is { FTLREF_bar } in a string. It also has a variable { var }.',
+                    developer_comment: 'This comment applies to attributes as well',
+                    terms: {
+                        'bar': '42'
+                    }
+                },
+                'string-with-ref.title': {
+                    string: 'This is { FTLREF_my_foo_ref } in a string. Bar is { FTLREF_bar }. It also has a variable { var }.',
+                    developer_comment: 'This comment applies to attributes as well',
+                    terms: {
+                        'bar': '42',
+                        'my-foo-ref': 'foo'
+                    }
+                }
+            }
+        );
+    });
+
     it('should convert a message with variables and references', () => {
         convert(
 `-moo-boo = moo-boo

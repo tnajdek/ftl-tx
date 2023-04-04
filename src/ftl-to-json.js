@@ -38,8 +38,8 @@ export function ftlToJSON(ftl, { termPrefix = 'FTLREF_', commentPrefix = 'tx:' }
 		if (entry?.type === 'Term') {
 			terms[entry.id.name] = entry.value.elements.map(e => processElement(e, ftl, null, { termPrefix })).join('');
 		} else if (entry?.type === 'Message') {
-			const usedTerms = [];
 			if (entry.value?.type === 'Pattern') {
+				const usedTerms = [];
 				const string = entry.value.elements.map(e => processElement(e, ftl, usedTerms, { termPrefix })).join('');
 				json[entry.id.name] = {
 					string,
@@ -49,7 +49,13 @@ export function ftlToJSON(ftl, { termPrefix = 'FTLREF_', commentPrefix = 'tx:' }
 			}
 			if (entry.attributes.length) {
 				entry.attributes.forEach((attr) => {
-					json[`${entry.id.name}.${attr.id.name}`] = { string: attr.value.elements.map(e => processElement(e, ftl, usedTerms, { termPrefix })).join('') };
+					const usedTerms = [];
+					const string = attr.value.elements.map(e => processElement(e, ftl, usedTerms, { termPrefix })).join('');
+					json[`${entry.id.name}.${attr.id.name}`] = { 
+						string,
+						...(entry.comment?.content.startsWith(commentPrefix) ? { developer_comment: entry.comment.content.slice(3).trim() } : {}),
+						...(usedTerms.length ? { terms: Object.fromEntries(usedTerms.map(t => ([t, terms[t]]))) } : {})
+					};
 				});
 			}
 		}
