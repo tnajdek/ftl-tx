@@ -187,8 +187,7 @@ string-with-comment = This one has comment`,
         );
     });
 
-    // this requires nesting_limit >= 8 (default is 10), see json-to-ftl.js for details
-    it('should convert a message with 5 levels of nesting', () => {
+    it('should convert a message with 4 levels of nesting + variable', () => {
         convert(
 `-dog-name = Pixel
 deeply-nested =
