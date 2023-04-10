@@ -29,6 +29,9 @@ A limited set of features is supported, specifically:
 * `termPrefix`, prefix used for term references, defaults to `FTLREF_`
 * `commentPrefix`, prefix used for comments, defaults to `tx:`
 * `nestLimit`, maximum message nesting level, defaults to 10
+* `storeTermsInJSON`, whether to collect terms (keys + values) into JSON, defaults to `true`
+* `terms`, explicit list of terms, required for `JSONToFtl` if `storeTermsInJSON = false`, defaults to `null`
+* `transformTerms`, whether to transform & prefix terms for strict parsers, defaults to `true`
 
 ## Examples
 

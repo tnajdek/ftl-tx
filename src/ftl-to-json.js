@@ -1,5 +1,5 @@
 import { parse } from "@fluent/syntax";
-import { checkForNonPlurals } from "./common.js";
+import { checkForNonPlurals, defaults } from "./common.js";
 
 function processElement(element, ftl, usedTerms = [], opts = {}) {
 	if (element.type === 'Placeable' && element.expression.type === 'SelectExpression') {
@@ -21,7 +21,9 @@ function processElement(element, ftl, usedTerms = [], opts = {}) {
 	}
 	if (element.type === 'Placeable' && element.expression.type === 'TermReference') {
 		usedTerms.push(element.expression.id.name);
-		return `{ ${opts.termPrefix}${element.expression.id.name.replaceAll('-', '_')} }`;
+		return opts.transformTerms ?
+			`{ ${opts.termPrefix}${element.expression.id.name.replaceAll('-', '_')} }` :
+			`{ -${element.expression.id.name} }`;
 	}
 	if (element.type === 'Placeable' && element.expression.type === 'StringLiteral') {
 		return element.expression.value.replaceAll(/({|})/g, `'$1'`);
@@ -30,31 +32,33 @@ function processElement(element, ftl, usedTerms = [], opts = {}) {
 	return ftl.slice(element.span.start, element.span.end);
 }
 
-export function ftlToJSON(ftl, { termPrefix = 'FTLREF_', commentPrefix = 'tx:' } = {}) {    
+export function ftlToJSON(ftl, opts = {}) {
 	const res = parse(ftl);
 	const json = {};
 	const terms = {};
+	opts = { ...defaults, ...opts };
+	const { commentPrefix, storeTermsInJSON } = opts;
 	res.body.forEach((entry) => {
 		if (entry?.type === 'Term') {
-			terms[entry.id.name] = entry.value.elements.map(e => processElement(e, ftl, null, { termPrefix })).join('');
+			terms[entry.id.name] = entry.value.elements.map(e => processElement(e, ftl, null, opts)).join('');
 		} else if (entry?.type === 'Message') {
 			if (entry.value?.type === 'Pattern') {
 				const usedTerms = [];
-				const string = entry.value.elements.map(e => processElement(e, ftl, usedTerms, { termPrefix })).join('');
+				const string = entry.value.elements.map(e => processElement(e, ftl, usedTerms, opts)).join('');
 				json[entry.id.name] = {
 					string,
 					...(entry.comment?.content.startsWith(commentPrefix) ? { developer_comment: entry.comment.content.slice(3).trim() } : {}),
-					...(usedTerms.length ? { terms: Object.fromEntries(usedTerms.map(t => ([t, terms[t]]))) } : {})
+					...(storeTermsInJSON && usedTerms.length ? { terms: Object.fromEntries(usedTerms.map(t => ([t, terms[t]]))) } : {})
 				};
 			}
 			if (entry.attributes.length) {
 				entry.attributes.forEach((attr) => {
 					const usedTerms = [];
-					const string = attr.value.elements.map(e => processElement(e, ftl, usedTerms, { termPrefix })).join('');
+					const string = attr.value.elements.map(e => processElement(e, ftl, usedTerms, opts)).join('');
 					json[`${entry.id.name}.${attr.id.name}`] = { 
 						string,
 						...(entry.comment?.content.startsWith(commentPrefix) ? { developer_comment: entry.comment.content.slice(3).trim() } : {}),
-						...(usedTerms.length ? { terms: Object.fromEntries(usedTerms.map(t => ([t, terms[t]]))) } : {})
+						...(storeTermsInJSON && usedTerms.length ? { terms: Object.fromEntries(usedTerms.map(t => ([t, terms[t]]))) } : {})
 					};
 				});
 			}

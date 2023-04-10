@@ -8,9 +8,9 @@ import { assert } from 'chai';
 import { ftlToJSON } from '../src/ftl-to-json.js';
 import { JSONToFtl } from '../src/json-to-ftl.js';
 
-function convert(ftl, json) {
-    assert.deepEqual(ftlToJSON(ftl), json, 'FTL -> JSON');
-    assert.equal(JSONToFtl(json).trim(), ftl.trim(), 'JSON -> FTL');
+function convert(ftl, json, opts = {}) {
+    assert.deepEqual(ftlToJSON(ftl, opts), json, 'FTL -> JSON');
+    assert.equal(JSONToFtl(json, opts).trim(), ftl.trim(), 'JSON -> FTL');
 }
 
 describe('Translate', () => {
@@ -266,4 +266,15 @@ deeply-nested =
         );
     });
 
+    it('Based on config it should convert a message wihtout touching references', () => {
+        convert(
+`-my-ref = Pixel
+string-with-terms = This message has a reference to { -my-ref }. It also has a { $var }.`,
+            {
+                'string-with-terms': {
+                    string: 'This message has a reference to { -my-ref }. It also has a { var }.',
+                }
+            }, { storeTermsInJSON: false, terms: { 'my-ref': 'Pixel' }, transformTerms: false }
+        );
+    });
 });

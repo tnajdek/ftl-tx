@@ -1,10 +1,10 @@
 import { Attribute, Comment, Identifier, Message, NumberLiteral, Pattern, Placeable, Resource,
 	SelectExpression, serialize, StringLiteral, Term, TermReference, TextElement, VariableReference, Variant
 } from "@fluent/syntax";
-import { checkForNonPlurals } from "./common.js";
+import { checkForNonPlurals, defaults } from "./common.js";
 
 
-function parseString(string, opts = {}) {
+function parseString(string, foundTerms = [], opts = {}) {
 	const elements = [];
 	const nestLimit = opts.nestLimit * 2; // each nesting level adds 2 brackets
 	const pattern = new RegExp(`${'{(?:[^{}]|'.repeat(nestLimit)}{[^{}]*}${')*}'.repeat(nestLimit)}`, 'g');
@@ -40,7 +40,7 @@ function parseString(string, opts = {}) {
 
 					return new Variant(
 					typeof selector === 'number' ? new NumberLiteral(selector) : new Identifier(selector),
-						textNoBrackets.length ? new Pattern(parseString(textNoBrackets, opts)) : new Pattern([new Placeable(new StringLiteral(''))])
+						textNoBrackets.length ? new Pattern(parseString(textNoBrackets, foundTerms, opts)) : new Pattern([new Placeable(new StringLiteral(''))])
 				)}
 			);
 
@@ -63,8 +63,12 @@ function parseString(string, opts = {}) {
 		} else {
 			const varName = bracketedContent.trim().slice(1, -1).trim();
 
-			if (varName.startsWith(opts.termPrefix)) {
-				elements.push(new Placeable(new TermReference(new Identifier(varName.slice(7).replaceAll('_', '-')))));
+			if (varName.startsWith(opts.termPrefix) || (!opts.transformTerms && varName.startsWith('-'))) {
+				const id = opts.transformTerms ?
+					varName.slice(opts.termPrefix.length).replaceAll('_', '-') :
+					varName.slice(1);
+				elements.push(new Placeable(new TermReference(new Identifier(id))));
+				foundTerms.add(id);
 			} else {
 				const id = new Identifier(varName.startsWith('$') ? varName.slice(1) : varName);
 				elements.push(new Placeable(new VariableReference(id)));
@@ -80,20 +84,22 @@ function parseString(string, opts = {}) {
 	return elements;
 }
 
-export function JSONToFtl(json, { nestLimit = 10, termPrefix = 'FTLREF_' } = {}) {
+export function JSONToFtl(json, opts = {}) {
 	const ftl = new Resource([]);
 	const termsMap = new Map();
+	const foundTerms = new Set();
+	opts = { ...defaults, ...opts };
 	for (const key in json) {
 		const attr = key.match(/\.([^.]+)$/)?.[1];
 		const msgName = attr ? key.slice(0, -attr.length - 1) : key;
 		const msgID = new Identifier(msgName);
 		const attrID = attr && new Identifier(attr);
-		const elements = parseString(json[key]?.string, { nestLimit, termPrefix });
+		const elements = parseString(json[key]?.string, foundTerms, opts);
 		const pattern = new Pattern(elements);
 		const comment = json[key]?.developer_comment ? new Comment(`tx: ${json[key].developer_comment}`) : null;
-		const terms = json[key]?.terms;
-		if (terms) {
-			Object.entries(terms).map(([term, value]) => termsMap.set(term, value));
+		const JSONTerms = json[key]?.terms;
+		if (opts.storeTermsInJSON && JSONTerms) {
+			Object.entries(JSONTerms).map(([term, value]) => termsMap.set(term, value));
 		}
 		if(attr) {
 			ftl.body.find(m => m.id.name === msgName)?.attributes.push(new Attribute(attrID, pattern)) || ftl.body.push(new Message(msgID, null, [new Attribute(attrID, pattern)], comment));
@@ -101,11 +107,21 @@ export function JSONToFtl(json, { nestLimit = 10, termPrefix = 'FTLREF_' } = {})
 			ftl.body.push(new Message(msgID, pattern, [], comment));
 		}
 	}
+
+	if (!opts.storeTermsInJSON) {
+		if (foundTerms.size && opts.terms && Object.keys(opts.terms).length && foundTerms.size === Object.keys(opts.terms).length) {
+			Object.entries(opts.terms)
+				.forEach(([term, value]) => termsMap.set(term, value));
+		} else if (!opts.terms || foundTerms.size !== Object.keys(opts.terms).length) {
+			throw new Error(`Found ${foundTerms.size} term(s) in JSON, but ${((opts.terms && Object.keys(opts.terms).length)) || 'no'} terms were provided in the options`);
+		}
+	}
+
 	const termKeys = [...termsMap.keys()];
 	termKeys.sort().reverse(); // since we're unshifting at the begining of the .ftl we need to start from the end, hence reverse()
 	for (const term of termKeys) {
 		const termID = new Identifier(term);
-		const termElements = parseString(termsMap.get(term), { nestLimit, termPrefix });
+		const termElements = parseString(termsMap.get(term), [], opts);
 		const termPattern = new Pattern(termElements);
 		ftl.body.unshift(new Term(termID, termPattern))
 	}
