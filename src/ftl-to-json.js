@@ -66,3 +66,14 @@ export function ftlToJSON(ftl, opts = {}) {
 	});
 	return json;
 }
+
+export function extractTerms(ftl) {
+	const res = parse(ftl);
+	const terms = {};
+	res.body.forEach((entry) => {
+		if (entry?.type === 'Term') {
+			terms[entry.id.name] = entry.value.elements.map(e => processElement(e, ftl, null, { transformTerms: false })).join('');
+		}
+	});
+	return terms;
+}

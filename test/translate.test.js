@@ -5,7 +5,7 @@
 //        Changing indentation WILL BREAK the tests.
 
 import { assert } from 'chai';
-import { ftlToJSON } from '../src/ftl-to-json.js';
+import { extractTerms, ftlToJSON } from '../src/ftl-to-json.js';
 import { JSONToFtl } from '../src/json-to-ftl.js';
 
 function convert(ftl, json, opts = {}) {
@@ -275,6 +275,19 @@ string-with-terms = This message has a reference to { -my-ref }. It also has a {
                     string: 'This message has a reference to { -my-ref }. It also has a { var }.',
                 }
             }, { storeTermsInJSON: false, terms: { 'my-ref': 'Pixel' }, transformTerms: false }
+        );
+    });
+
+    it('should work with dog-feeded terms', () => {
+        const ftl =
+`-my-ref = Pixel
+string-with-terms = This message has a reference to { -my-ref }. It also has a { $var }.`;
+        convert(ftl,
+            {
+                'string-with-terms': {
+                    string: 'This message has a reference to { -my-ref }. It also has a { var }.',
+                }
+            }, { storeTermsInJSON: false, terms: extractTerms(ftl), transformTerms: false }
         );
     });
 });
