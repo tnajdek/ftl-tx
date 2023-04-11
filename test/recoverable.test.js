@@ -80,4 +80,15 @@ describe('Recoverable', () => {
             { 'string-with-escaped': { string: 'This message features a string literal' } }
         );
     });
+
+    it('should allow converting to JSON where terms are not included and not provided', () => {
+        assert.deepEqual(
+            ftlToJSON(
+`-my-ref = This is a term
+string-with-terms = This message has a reference to { -my-ref }. It also has a { var }.`,
+                { storeTermsInJSON: false, transformTerms: false }
+            ),
+            { 'string-with-terms': { string: 'This message has a reference to { -my-ref }. It also has a { var }.' } }
+        );
+    });
 });
