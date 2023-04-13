@@ -28,7 +28,11 @@ function processElement(element, ftl, usedTerms = [], opts = {}) {
 	if (element.type === 'Placeable' && element.expression.type === 'StringLiteral') {
 		return element.expression.value.replaceAll(/({|})/g, `'$1'`);
 	}
+	if (element.type === 'TextElement') {
+		return element.value;
+	}
 
+	// as a fallback, just return the original string
 	return ftl.slice(element.span.start, element.span.end);
 }
 

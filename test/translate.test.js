@@ -290,4 +290,14 @@ string-with-terms = This message has a reference to { -my-ref }. It also has a {
             }, { storeTermsInJSON: false, terms: extractTerms(ftl), transformTerms: false }
         );
     });
+
+    it('should correctly trim indent in multiline strings', () => {
+        convert(
+`string-with-multiline =
+    This is a multiline string.
+     Second line.
+     It has a { $var }.`,
+            { 'string-with-multiline': { string: "This is a multiline string.\n Second line.\n It has a { var }." } }
+        );
+    });
 });

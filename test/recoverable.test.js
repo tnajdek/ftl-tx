@@ -13,19 +13,19 @@ describe('Recoverable', () => {
     it('should handle various spacing around variables in JSON', () => {
         const expected = `string-with-var = This is a { $var } in string`;
         assert.equal(
-            JSONToFtl({ 'string-with-var': { string: 'This is a {$var} in string' } }).trim(),
+            JSONToFtl({ 'string-with-var': { string: 'This is a {var} in string' } }).trim(),
             expected
         );
         assert.equal(
-            JSONToFtl({ 'string-with-var': { string: 'This is a {     $var} in string' } }).trim(),
+            JSONToFtl({ 'string-with-var': { string: 'This is a {     var} in string' } }).trim(),
             expected
         );
         assert.equal(
-            JSONToFtl({ 'string-with-var': { string: 'This is a {     $var     } in string' } }).trim(),
+            JSONToFtl({ 'string-with-var': { string: 'This is a {     var     } in string' } }).trim(),
             expected
         );
         assert.equal(
-            JSONToFtl({ 'string-with-var': { string: 'This is a {$var     } in string' } }).trim(),
+            JSONToFtl({ 'string-with-var': { string: 'This is a {var     } in string' } }).trim(),
             expected
         );
     });
@@ -85,10 +85,18 @@ describe('Recoverable', () => {
         assert.deepEqual(
             ftlToJSON(
 `-my-ref = This is a term
-string-with-terms = This message has a reference to { -my-ref }. It also has a { var }.`,
+string-with-terms = This message has a reference to { -my-ref }. It also has a { $var }.`,
                 { storeTermsInJSON: false, transformTerms: false }
             ),
             { 'string-with-terms': { string: 'This message has a reference to { -my-ref }. It also has a { var }.' } }
+        );
+    });
+
+    // MessageReference is kept as is
+    it('should handle a message with a MessageReference', () => {
+        assert.deepEqual(
+            ftlToJSON(`string-with-msg-ref = This message has a { ref }.`),
+            { 'string-with-msg-ref': { string: 'This message has a { ref }.' } }
         );
     });
 });
