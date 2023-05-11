@@ -99,4 +99,16 @@ string-with-terms = This message has a reference to { -my-ref }. It also has a {
             { 'string-with-msg-ref': { string: 'This message has a { ref }.' } }
         );
     });
+
+    it('should preserve new lines', () => {
+        assert.deepEqual(
+            ftlToJSON(
+`foo = This is a first line.
+       This is still part of the first line?
+
+       This is a second line.`,
+            ),
+            { 'foo': { string: "This is a first line.\nThis is still part of the first line?\n\nThis is a second line." } }
+        );
+    });
 });

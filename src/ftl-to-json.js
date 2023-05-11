@@ -1,6 +1,11 @@
 import { parse } from "@fluent/syntax";
 import { checkForNonPlurals, defaults } from "./common.js";
 
+function stringifyFunction(fnRef) {
+	const needsSeparator = fnRef.arguments.positional.length && fnRef.arguments.named.length;
+	return `${fnRef.id.name}(${fnRef.arguments.positional.map(pos => pos.id.name).join(', ')}${needsSeparator ? ', ' : ''}${fnRef.arguments.named.map(nm => nm.value.value == parseInt(nm.value.value) ? `${nm.name.name}: ${nm.value.value}` : `${nm.name.name}: "${nm.value.value}"`).join(', ')})`
+}
+
 function processElement(element, ftl, usedTerms = [], opts = {}) {
 	if (element.type === 'Placeable' && element.expression.type === 'SelectExpression') {
 		const ICUVariants = element.expression.variants.map(v => {
@@ -13,8 +18,11 @@ function processElement(element, ftl, usedTerms = [], opts = {}) {
 			}
 		}).join(' ');
 
+		const ICUSelector = element.expression.selector.type === 'FunctionReference' ?
+			stringifyFunction(element.expression.selector) :
+			element.expression.selector.id.name;
 		const selectType = checkForNonPlurals(element.expression.variants) ? 'select' : 'plural';
-		return `{${element.expression.selector.id.name}, ${selectType}, ${ICUVariants}}`;
+		return `{${ICUSelector}, ${selectType}, ${ICUVariants}}`;
 	}
 	if (element.type === 'Placeable' && element.expression.type === 'VariableReference') {
 		return `{ ${element.expression.id.name} }`;
@@ -31,6 +39,11 @@ function processElement(element, ftl, usedTerms = [], opts = {}) {
 	if (element.type === 'TextElement') {
 		return element.value;
 	}
+	if (element.type === 'Placeable' && element.expression.type === 'FunctionReference') {
+		return `{ ${stringifyFunction(element.expression)} }`;
+	}
+
+	console.warn(`Unknown element type: ${element.type}, ${element?.expression?.type}`);
 
 	// as a fallback, just return the original string
 	return ftl.slice(element.span.start, element.span.end);

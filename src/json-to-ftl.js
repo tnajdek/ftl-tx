@@ -1,8 +1,29 @@
-import { Attribute, Comment, Identifier, Message, NumberLiteral, Pattern, Placeable, Resource,
-	SelectExpression, serialize, StringLiteral, Term, TermReference, TextElement, VariableReference, Variant
+import {
+	Attribute, CallArguments, Comment, FunctionReference, Identifier, Message, NumberLiteral, Pattern, Placeable, Resource,
+	NamedArgument, SelectExpression, serialize, StringLiteral, Term, TermReference, TextElement, VariableReference, Variant
 } from "@fluent/syntax";
 import { checkForNonPlurals, defaults } from "./common.js";
 
+function parseArgumentStrings(string) {
+	if(string.trim().length === 0) {
+		return { positional: [], named: [] };
+	}
+	const vars = string.split(',').map(v => v.trim());
+	const positional = vars.filter(v => !v.includes(':')).map(v => v.trim());
+	const named = vars
+		.filter(v => v.includes(':'))
+		.map(s => {
+			let [k, v] = s.split(':');
+			k = k.trim();
+			v = v.trim();
+			if (v.startsWith('"') && v.endsWith('"')) {
+				v = v.slice(1, -1);
+			}
+			return [k, v];
+		});
+		
+	return { positional, named };
+}
 
 function parseString(string, foundTerms = [], opts = {}) {
 	const elements = [];
@@ -13,15 +34,19 @@ function parseString(string, foundTerms = [], opts = {}) {
 	
 	while ((match = pattern.exec(string)) !== null) {
 		const [bracketedContent,] = match;
-		const pluralRegex = /^\{\s*(\w+)\s*,\s*(plural|select)\s*,\s*((?:(?!^\{).)*)\}$/s;
+		const selectorRegex = /^\{\s*(?<selector>\w+)(?<args>\((?:\$?\w+(?:,\s+)?)*(?:\w+:\s+(?:"\w*?"|\d+)(?:,\s+)?)*\))?\s*,\s*(?<type>plural|select)\s*,\s*(?<variants>(?:(?!^\{).)*)\}$/s;
+		const functionRegex = /\{\s*(?<fn>\w+)(?<args>\((?:\$?\w+(?:,\s+)?)*(?:\w+:\s+(?:"\w*?"|\d+)(?:,\s+)?)*\))\s*\}/s;
 
 		if (match.index > start) {
 			elements.push(new TextElement(string.slice(start, match.index)));
 		}
 		start = pattern.lastIndex;
 
-		if (pluralRegex.test(bracketedContent)) {
-			const [, variable, selectType, variants] = bracketedContent.match(pluralRegex);
+		if (selectorRegex.test(bracketedContent)) {
+			const matches = bracketedContent.match(selectorRegex);
+			const { selector, args, type: selectType, variants } = matches.groups;
+			const isFunctionSelector = !!args;
+
 			const variantRegex = new RegExp(`(\\w+)\\s+(${'{(?:[^{}]|'.repeat(nestLimit)}{[^{}]*}${')*}'.repeat(nestLimit)})`, 'gm');
 			let match;
 			let lastSelector = null;
@@ -53,12 +78,35 @@ function parseString(string, foundTerms = [], opts = {}) {
 
 			const defaultVariant = ftlVariants.find(v => v.key.name === 'other') ?? ftlVariants.find(v => v.key.name === lastSelector) ?? ftlVariants[0];
 			defaultVariant.default = true;
+			let ftlSelector;
 
-			elements.push(new Placeable(
-				new SelectExpression(
-					new VariableReference(new Identifier(variable)),
-					ftlVariants
-				))
+			if(isFunctionSelector) {
+				const { positional, named } = parseArgumentStrings(args.slice(1, -1));
+				ftlSelector = new FunctionReference(
+					new Identifier(selector),
+					new CallArguments(
+						positional.map(id => new VariableReference(new Identifier(id))),
+						named.map(([name, value]) => new NamedArgument(new Identifier(name), new StringLiteral(value)))
+					)
+				);
+			} else {
+				ftlSelector = new VariableReference(new Identifier(selector));
+			}
+
+			elements.push(new Placeable(new SelectExpression(ftlSelector, ftlVariants)));
+		} else if(functionRegex.test(bracketedContent)) {
+			const { fn, args } = bracketedContent.match(functionRegex).groups;
+			const { positional, named } = parseArgumentStrings(args.slice(1, -1));
+			elements.push(
+				new Placeable(
+					new FunctionReference(
+						new Identifier(fn),
+						new CallArguments(
+							positional.map(id => new VariableReference(new Identifier(id))),
+							named.map(([name, value]) => new NamedArgument(new Identifier(name), value == parseInt(value) ? new NumberLiteral(value) : new StringLiteral(value)))
+						)
+					)
+				)
 			);
 		} else {
 			const varName = bracketedContent.trim().slice(1, -1).trim();
@@ -73,8 +121,7 @@ function parseString(string, foundTerms = [], opts = {}) {
 				const id = new Identifier(varName.startsWith('$') ? varName.slice(1) : varName);
 				elements.push(new Placeable(new VariableReference(id)));
 			}
-		}	
-		
+		}
 	}
 
 	if (start < string.length) {

@@ -300,4 +300,74 @@ string-with-terms = This message has a reference to { -my-ref }. It also has a {
             { 'string-with-multiline': { string: "This is a multiline string.\n Second line.\n It has a { var }." } }
         );
     });
+
+    it('should convert a message with a function call', () => {
+        convert(
+            `string-with-fn = Last checked for { $user }: { DATETIME($lastChecked, day: 20, month: "long") }.`,
+            {
+                'string-with-fn': { string: 'Last checked for { user }: { DATETIME(lastChecked, day: 20, month: "long") }.' }
+            }
+        );
+        convert(
+            `string-with-fn = Last checked for { $user }: { DATETIME(day: 20, month: "long", empty: "") }.`,
+            {
+                'string-with-fn': { string: 'Last checked for { user }: { DATETIME(day: 20, month: "long", empty: "") }.' }
+            }
+        );
+        convert(
+            `string-with-fn = Last checked for { $user }: { DATETIME($lastChecked) }.`,
+            {
+                'string-with-fn': { string: 'Last checked for { user }: { DATETIME(lastChecked) }.' }
+            }
+        );
+    });
+
+    it('should convert a message with a selector that is a function call', () => {
+        convert(
+`string-with-fn =
+    { PLATFORM() ->
+        [macos] Settings for { $user } on macOS
+       *[other] Preferences for { $user }
+    }`,
+            {
+                'string-with-fn': { string: '{PLATFORM(), select, macos {Settings for { user } on macOS} other {Preferences for { user }}}' }
+            }
+        );
+    });
+
+    it(`should convert a message with a function call with arguments as a selector`, () => {
+        convert(
+`string-with-fn =
+    { DATE($update, relative: "true") ->
+        [today] carpe diem
+       *[other] lorem ipsum
+    }`,
+            {
+                'string-with-fn': { string: '{DATE(update, relative: "true"), select, today {carpe diem} other {lorem ipsum}}' }
+            }
+        );
+
+        convert(
+            `string-with-fn =
+    { DATE(relative: "true") ->
+        [today] carpe diem
+       *[other] lorem ipsum
+    }`,
+            {
+                'string-with-fn': { string: '{DATE(relative: "true"), select, today {carpe diem} other {lorem ipsum}}' }
+            }
+        );
+
+        convert(
+            `string-with-fn =
+    { DATE($update) ->
+        [today] carpe diem
+       *[other] lorem ipsum
+    }`,
+            {
+                'string-with-fn': { string: '{DATE(update), select, today {carpe diem} other {lorem ipsum}}' }
+            }
+        );
+    });
+    
 });
