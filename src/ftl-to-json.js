@@ -18,6 +18,10 @@ function processElement(element, ftl, usedTerms = [], opts = {}) {
 			}
 		}).join(' ');
 
+		if(!['FunctionReference', 'VariableReference'].includes(element.expression.selector.type)) {
+			throw new Error(`Unsupported selector type: ${element.expression.selector.type} (${ftl.slice(element.expression.selector.span.start, element.expression.selector.span.end)})`);
+		}
+
 		const ICUSelector = element.expression.selector.type === 'FunctionReference' ?
 			stringifyFunction(element.expression.selector) :
 			element.expression.selector.id.name;
@@ -36,17 +40,21 @@ function processElement(element, ftl, usedTerms = [], opts = {}) {
 	if (element.type === 'Placeable' && element.expression.type === 'StringLiteral') {
 		return element.expression.value.replaceAll(/({|})/g, `'$1'`);
 	}
-	if (element.type === 'TextElement') {
-		return element.value;
+	if (element.type === 'Placeable' && element.expression.type === 'NumberLiteral') {
+		return element.expression.value.replaceAll(/({|})/g, `$1`);
 	}
 	if (element.type === 'Placeable' && element.expression.type === 'FunctionReference') {
 		return `{ ${stringifyFunction(element.expression)} }`;
 	}
+	if (element.type === 'Placeable' && element.expression.type === 'MessageReference') {
+		return `{ ${element.expression.id.name} }`;
+	}
+	if (element.type === 'TextElement') {
+		return element.value;
+	}
 
-	console.warn(`Unknown element type: ${element.type}, ${element?.expression?.type}`);
-
-	// as a fallback, just return the original string
-	return ftl.slice(element.span.start, element.span.end);
+	// console.warn(`Unknown element type: ${element.type}, ${element?.expression?.type}`);
+	// return ftl.slice(element.span.start, element.span.end);
 }
 
 export function ftlToJSON(ftl, opts = {}) {

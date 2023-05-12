@@ -81,6 +81,13 @@ describe('Recoverable', () => {
         );
     });
 
+    it('should convert a message with a number literal', () => {
+        assert.deepEqual(
+            ftlToJSON(`string-with-escaped = This message features: { 42 }, a number literal`),
+            { 'string-with-escaped': { string: 'This message features: 42, a number literal' } }
+        );
+    });
+
     it('should allow converting to JSON where terms are not included and not provided', () => {
         assert.deepEqual(
             ftlToJSON(

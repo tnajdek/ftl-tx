@@ -6,6 +6,7 @@
 
 import { assert } from 'chai';
 import { JSONToFtl } from '../src/json-to-ftl.js';
+import { ftlToJSON } from '../src/ftl-to-json.js';
 
 
 describe('Errors', () => {
@@ -29,5 +30,29 @@ describe('Errors', () => {
                 { storeTermsInJSON: false, terms: [], transformTerms: false }
             )
         }, 'Found 1 term(s) in JSON, but no terms were provided in the options');
+    });
+
+    it('should error when using string literal as a selector', () => {
+        assert.throws(() => {
+            ftlToJSON(
+`selector-literal =
+    { "astring" ->
+        [a] A
+       *[b] B
+    }`
+            )
+        }, 'Unsupported selector type: StringLiteral ("astring")');
+    });
+    
+    it('should error when using number literal as a selector', () => {
+        assert.throws(() => {
+            ftlToJSON(
+                `selector-literal =
+    { 13 ->
+        [a] A
+       *[b] B
+    }`
+            )
+        }, 'Unsupported selector type: NumberLiteral (13)');
     });
 });
