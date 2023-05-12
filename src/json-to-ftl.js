@@ -156,12 +156,13 @@ export function JSONToFtl(json, opts = {}) {
 	}
 
 	if (!opts.storeTermsInJSON) {
-		if (foundTerms.size && opts.terms && Object.keys(opts.terms).length && foundTerms.size === Object.keys(opts.terms).length) {
-			Object.entries(opts.terms)
-				.forEach(([term, value]) => termsMap.set(term, value));
-		} else if (!opts.terms || foundTerms.size !== Object.keys(opts.terms).length) {
-			throw new Error(`Found ${foundTerms.size} term(s) in JSON, but ${((opts.terms && Object.keys(opts.terms).length)) || 'no'} terms were provided in the options`);
-		}
+		const providedTerms = Object.keys(opts.terms ?? {});
+		foundTerms.forEach(term => {
+			if (!providedTerms.includes(term)) {
+				throw new Error(`Found term "${term}" in JSON, but it was not provided in the options`);
+			}
+		});
+		Object.entries(opts.terms).forEach(([term, value]) => termsMap.set(term, value));
 	}
 
 	const termKeys = [...termsMap.keys()];

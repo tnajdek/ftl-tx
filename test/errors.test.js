@@ -22,14 +22,14 @@ describe('Errors', () => {
                 { 'string-with-terms': { string: 'This message has a reference to { -my-ref }. It also has a { var }.' } },
                 { storeTermsInJSON: false, transformTerms: false }
             )
-        }, 'Found 1 term(s) in JSON, but no terms were provided in the options');
+        }, 'Found term "my-ref" in JSON, but it was not provided in the options');
 
         assert.throws(() => {
             JSONToFtl(
                 { 'string-with-terms': { string: 'This message has a reference to { -my-ref }. It also has a { var }.' } },
                 { storeTermsInJSON: false, terms: [], transformTerms: false }
             )
-        }, 'Found 1 term(s) in JSON, but no terms were provided in the options');
+        }, 'Found term "my-ref" in JSON, but it was not provided in the options');
     });
 
     it('should error when using string literal as a selector', () => {
