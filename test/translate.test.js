@@ -278,6 +278,17 @@ string-with-terms = This message has a reference to { -my-ref }. It also has a {
         );
     });
 
+    it('Based on config it should convert to FTL without adding terms', () => {
+        convert(
+            `string-with-terms = This message has a reference to { -my-ref }. It also has a { $var }.`,
+            {
+                'string-with-terms': {
+                    string: 'This message has a reference to { -my-ref }. It also has a { var }.',
+                }
+            }, { storeTermsInJSON: false, terms: { 'my-ref': 'Pixel' }, transformTerms: false, addTermsToFTL: false }
+        );
+    });
+
     it('should work with dog-feeded terms', () => {
         const ftl =
 `-my-ref = Pixel

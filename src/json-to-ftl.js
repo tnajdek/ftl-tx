@@ -165,13 +165,15 @@ export function JSONToFtl(json, opts = {}) {
 		Object.entries(opts.terms).forEach(([term, value]) => termsMap.set(term, value));
 	}
 
-	const termKeys = [...termsMap.keys()];
-	termKeys.sort().reverse(); // since we're unshifting at the begining of the .ftl we need to start from the end, hence reverse()
-	for (const term of termKeys) {
-		const termID = new Identifier(term);
-		const termElements = parseString(termsMap.get(term), [], opts);
-		const termPattern = new Pattern(termElements);
-		ftl.body.unshift(new Term(termID, termPattern))
+	if(opts.addTermsToFTL) {
+		const termKeys = [...termsMap.keys()];
+		termKeys.sort().reverse(); // since we're unshifting at the begining of the .ftl we need to start from the end, hence reverse()
+		for (const term of termKeys) {
+			const termID = new Identifier(term);
+			const termElements = parseString(termsMap.get(term), [], opts);
+			const termPattern = new Pattern(termElements);
+			ftl.body.unshift(new Term(termID, termPattern))
+		}
 	}
 
 	return serialize(ftl);
