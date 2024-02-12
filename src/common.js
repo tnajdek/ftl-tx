@@ -12,4 +12,5 @@ export const defaults = {
     termPrefix: 'FTLREF_',
     terms: null,
     transformTerms: true,
+    skipRefOnly: false,
 }

@@ -118,4 +118,40 @@ string-with-terms = This message has a reference to { -my-ref }. It also has a {
             { 'foo': { string: "This is a first line.\nThis is still part of the first line?\n\nThis is a second line." } }
         );
     });
+
+    it('should skip message-reference only messages, based on config', () => {
+        assert.deepEqual(
+            ftlToJSON(
+`bar = lorem ipsum
+foo = { bar }`
+        ),
+            { bar: { string: "lorem ipsum"}, foo: { string: "{ bar }"}  }
+        );
+
+        assert.deepEqual(
+            ftlToJSON(
+`bar = lorem ipsum
+foo = { bar }`, { skipRefOnly: true }
+            ),
+            { bar: { string: "lorem ipsum" } }
+        );
+
+        assert.deepEqual(
+            ftlToJSON(
+`bar = lorem ipsum
+foo =
+    .label = { bar }`
+            ),
+            { bar: { string: "lorem ipsum" }, 'foo.label': { string: "{ bar }" } }
+        );
+
+        assert.deepEqual(
+            ftlToJSON(
+                `bar = lorem ipsum
+foo =
+    .label = { bar }`, { skipRefOnly: true }
+            ),
+            { bar: { string: "lorem ipsum" } }
+        );
+    });
 });

@@ -35,6 +35,7 @@ A limited set of features is supported, specifically:
 * `termPrefix`, prefix used for term references, defaults to `FTLREF_`
 * `terms`, explicit list of terms, required for `JSONToFtl` if `storeTermsInJSON = false`, defaults to `null`
 * `transformTerms`, whether to transform & prefix terms for strict parsers, defaults to `true`
+* `skipRefOnly`, whether to skip messages that only include a reference to another message value
 
 ## Examples
 
