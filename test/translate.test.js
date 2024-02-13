@@ -381,4 +381,37 @@ string-with-terms = This message has a reference to { -my-ref }. It also has a {
         );
     });
     
+    it('should convert a message with a message reference', () => {
+        convert(
+`ref = foobar
+string-with-msg-ref = { ref }`,
+            { ref: { string: 'foobar' }, 'string-with-msg-ref': { string: '{ ref }' } }
+        );
+        convert(
+`ref = foobar
+string-with-msg-ref =
+    .label = { ref }`,
+            { ref: { string: 'foobar' }, 'string-with-msg-ref.label': { string: '{ ref }' } }
+        );
+
+        convert(
+`ref = foobar
+string-with-msg-ref = This message has a { ref }.`,
+            { ref: { string: 'foobar' }, 'string-with-msg-ref': { string: 'This message has a { ref }.' } }
+        );
+        convert(
+`ref = foobar
+string-with-msg-ref =
+    .label = This message has a { ref }.`,
+            { ref: { string: 'foobar' }, 'string-with-msg-ref.label': { string: 'This message has a { ref }.' } }
+        );
+        convert(
+`nested =
+    .ref = foobar
+string-with-msg-ref =
+    .label = This message has a { nested.ref }.`,
+            { 'nested.ref': { string: 'foobar' }, 'string-with-msg-ref.label': { string: 'This message has a { nested.ref }.' } }
+        );
+    });
+    
 });

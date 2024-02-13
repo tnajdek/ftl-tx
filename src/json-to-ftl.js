@@ -1,6 +1,6 @@
 import {
-	Attribute, CallArguments, Comment, FunctionReference, Identifier, Message, NumberLiteral, Pattern, Placeable, Resource,
-	NamedArgument, SelectExpression, serialize, StringLiteral, Term, TermReference, TextElement, VariableReference, Variant
+	Attribute, CallArguments, Comment, FunctionReference, Identifier, Message, MessageReference, NumberLiteral, Pattern, Placeable,
+	Resource, NamedArgument, SelectExpression, serialize, StringLiteral, Term, TermReference, TextElement, VariableReference, Variant
 } from "@fluent/syntax";
 import { checkForNonPlurals, defaults } from "./common.js";
 
@@ -25,7 +25,7 @@ function parseArgumentStrings(string) {
 	return { positional, named };
 }
 
-function parseString(string, foundTerms = [], opts = {}) {
+function parseString(string, msgKeys, foundTerms = [], opts = {}) {
 	const elements = [];
 	const nestLimit = opts.nestLimit * 2; // each nesting level adds 2 brackets
 	const pattern = new RegExp(`${'{(?:[^{}]|'.repeat(nestLimit)}{[^{}]*}${')*}'.repeat(nestLimit)}`, 'g');
@@ -65,7 +65,7 @@ function parseString(string, foundTerms = [], opts = {}) {
 
 					return new Variant(
 					typeof selector === 'number' ? new NumberLiteral(selector) : new Identifier(selector),
-						textNoBrackets.length ? new Pattern(parseString(textNoBrackets, foundTerms, opts)) : new Pattern([new Placeable(new StringLiteral(''))])
+						textNoBrackets.length ? new Pattern(parseString(textNoBrackets, msgKeys, foundTerms, opts)) : new Pattern([new Placeable(new StringLiteral(''))])
 				)}
 			);
 
@@ -111,7 +111,9 @@ function parseString(string, foundTerms = [], opts = {}) {
 		} else {
 			const varName = bracketedContent.trim().slice(1, -1).trim();
 
-			if (varName.startsWith(opts.termPrefix) || (!opts.transformTerms && varName.startsWith('-'))) {
+			if(msgKeys.has(varName)) {
+				elements.push(new Placeable(new MessageReference(new Identifier(varName))));
+			} else if (varName.startsWith(opts.termPrefix) || (!opts.transformTerms && varName.startsWith('-'))) {
 				const id = opts.transformTerms ?
 					varName.slice(opts.termPrefix.length).replaceAll('_', '-') :
 					varName.slice(1);
@@ -135,13 +137,14 @@ export function JSONToFtl(json, opts = {}) {
 	const ftl = new Resource([]);
 	const termsMap = new Map();
 	const foundTerms = new Set();
+	const msgKeys = new Set(Object.keys(json));
 	opts = { ...defaults, ...opts };
 	for (const key in json) {
 		const attr = key.match(/\.([^.]+)$/)?.[1];
 		const msgName = attr ? key.slice(0, -attr.length - 1) : key;
 		const msgID = new Identifier(msgName);
 		const attrID = attr && new Identifier(attr);
-		const elements = parseString(json[key]?.string, foundTerms, opts);
+		const elements = parseString(json[key]?.string, msgKeys, foundTerms, opts);
 		const pattern = new Pattern(elements);
 		const comment = json[key]?.developer_comment ? new Comment(`tx: ${json[key].developer_comment}`) : null;
 		const JSONTerms = json[key]?.terms;
@@ -170,7 +173,7 @@ export function JSONToFtl(json, opts = {}) {
 		termKeys.sort().reverse(); // since we're unshifting at the begining of the .ftl we need to start from the end, hence reverse()
 		for (const term of termKeys) {
 			const termID = new Identifier(term);
-			const termElements = parseString(termsMap.get(term), [], opts);
+			const termElements = parseString(termsMap.get(term), msgKeys, [], opts);
 			const termPattern = new Pattern(termElements);
 			ftl.body.unshift(new Term(termID, termPattern))
 		}

@@ -47,7 +47,9 @@ function processElement(element, ftl, usedTerms = [], opts = {}) {
 		return `{ ${stringifyFunction(element.expression)} }`;
 	}
 	if (element.type === 'Placeable' && element.expression.type === 'MessageReference') {
-		return `{ ${element.expression.id.name} }`;
+		return element.expression.attribute ?
+			`{ ${element.expression.id.name}.${element.expression.attribute.name} }` :
+			`{ ${element.expression.id.name} }`;
 	}
 	if (element.type === 'TextElement') {
 		return element.value;
