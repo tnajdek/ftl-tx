@@ -16,22 +16,6 @@ describe('Errors', () => {
         }, 'Invalid plural variant: scores');
     });
 
-    it('should error if trying to convert from JSON where terms are not included and not provided', () => {
-        assert.throws(() => {
-            JSONToFtl(
-                { 'string-with-terms': { string: 'This message has a reference to { -my-ref }. It also has a { var }.' } },
-                { storeTermsInJSON: false, transformTerms: false }
-            )
-        }, 'Found term "my-ref" in JSON, but it was not provided in the options');
-
-        assert.throws(() => {
-            JSONToFtl(
-                { 'string-with-terms': { string: 'This message has a reference to { -my-ref }. It also has a { var }.' } },
-                { storeTermsInJSON: false, terms: [], transformTerms: false }
-            )
-        }, 'Found term "my-ref" in JSON, but it was not provided in the options');
-    });
-
     it('should error when using string literal as a selector', () => {
         assert.throws(() => {
             ftlToJSON(

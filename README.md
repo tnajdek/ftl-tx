@@ -31,11 +31,8 @@ A limited set of features is supported, specifically:
 * `addTermsToFTL`, whether to include terms in produced FTL file, defaults to `true`
 * `commentPrefix`, prefix used for comments, defaults to `tx:`
 * `nestLimit`, maximum message nesting level, defaults to 10
-* `storeTermsInJSON`, whether to collect terms (keys + values) into JSON, defaults to `true`
-* `termPrefix`, prefix used for term references, defaults to `FTLREF_`
-* `terms`, explicit list of terms, required for `JSONToFtl` if `storeTermsInJSON = false`, defaults to `null`
-* `transformTerms`, whether to transform & prefix terms for strict parsers, defaults to `true`
-* `skipRefOnly`, whether to skip messages that only include a reference to another message value
+* `skipRefOnly`, whether to exclude messages that only include a reference to another message value from JSON output
+* `skipTerms`, whether to exclude terms from JSON output
 
 ## Examples
 

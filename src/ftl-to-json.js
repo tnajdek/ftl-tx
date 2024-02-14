@@ -1,20 +1,29 @@
 import { parse } from "@fluent/syntax";
 import { checkForNonPlurals, defaults } from "./common.js";
 
-function stringifyFunction(fnRef) {
-	const needsSeparator = fnRef.arguments.positional.length && fnRef.arguments.named.length;
-	return `${fnRef.id.name}(${fnRef.arguments.positional.map(pos => pos.id.name).join(', ')}${needsSeparator ? ', ' : ''}${fnRef.arguments.named.map(nm => nm.value.value == parseInt(nm.value.value) ? `${nm.name.name}: ${nm.value.value}` : `${nm.name.name}: "${nm.value.value}"`).join(', ')})`
+
+function prefixPlaceable(placeable, ftl) {
+	switch(placeable.type) {
+		case 'VariableReference':
+			return `$${placeable.id.name}`;
+		case 'TermReference':
+			return `-${placeable.id.name}`;
+		case 'FunctionReference':
+			return ftl.slice(placeable.span.start, placeable.span.end);
+		default:
+			return placeable.attribute ? `${placeable.id.name}.${placeable.attribute.name}` : placeable.id.name;
+	}
 }
 
-function processElement(element, ftl, usedTerms = [], opts = {}) {
+function processElement(element, ftl, opts = {}) {
 	if (element.type === 'Placeable' && element.expression.type === 'SelectExpression') {
 		const ICUVariants = element.expression.variants.map(v => {
 			switch (v.key.type) {
 				case 'NumberLiteral':
-					return `=${v.key.value} {${v.value.elements.map(e => processElement(e, ftl, usedTerms, opts)).join('')}}`;
+					return `=${v.key.value} {${v.value.elements.map(e => processElement(e, ftl, opts)).join('')}}`;
 				default:
 				case 'Identifier':
-					return `${ftl.slice(v.key.span.start, v.key.span.end)} {${v.value.elements.map(e => processElement(e, ftl, usedTerms, opts)).join('')}}`;
+					return `${ftl.slice(v.key.span.start, v.key.span.end)} {${v.value.elements.map(e => processElement(e, ftl, opts)).join('')}}`;
 			}
 		}).join(' ');
 
@@ -22,34 +31,18 @@ function processElement(element, ftl, usedTerms = [], opts = {}) {
 			throw new Error(`Unsupported selector type: ${element.expression.selector.type} (${ftl.slice(element.expression.selector.span.start, element.expression.selector.span.end)})`);
 		}
 
-		const ICUSelector = element.expression.selector.type === 'FunctionReference' ?
-			stringifyFunction(element.expression.selector) :
-			element.expression.selector.id.name;
+		const ICUSelector = prefixPlaceable(element.expression.selector, ftl);
 		const selectType = checkForNonPlurals(element.expression.variants) ? 'select' : 'plural';
 		return `{${ICUSelector}, ${selectType}, ${ICUVariants}}`;
 	}
-	if (element.type === 'Placeable' && element.expression.type === 'VariableReference') {
-		return `{ ${element.expression.id.name} }`;
-	}
-	if (element.type === 'Placeable' && element.expression.type === 'TermReference') {
-		usedTerms.push(element.expression.id.name);
-		return opts.transformTerms ?
-			`{ ${opts.termPrefix}${element.expression.id.name.replaceAll('-', '_')} }` :
-			`{ -${element.expression.id.name} }`;
+	if (element.type === 'Placeable' && ['VariableReference', 'TermReference', 'FunctionReference', 'MessageReference'].includes(element.expression.type)) {
+		return `{ ${prefixPlaceable(element.expression, ftl)} }`;
 	}
 	if (element.type === 'Placeable' && element.expression.type === 'StringLiteral') {
 		return element.expression.value.replaceAll(/({|})/g, `'$1'`);
 	}
 	if (element.type === 'Placeable' && element.expression.type === 'NumberLiteral') {
 		return element.expression.value.replaceAll(/({|})/g, `$1`);
-	}
-	if (element.type === 'Placeable' && element.expression.type === 'FunctionReference') {
-		return `{ ${stringifyFunction(element.expression)} }`;
-	}
-	if (element.type === 'Placeable' && element.expression.type === 'MessageReference') {
-		return element.expression.attribute ?
-			`{ ${element.expression.id.name}.${element.expression.attribute.name} }` :
-			`{ ${element.expression.id.name} }`;
 	}
 	if (element.type === 'TextElement') {
 		return element.value;
@@ -73,49 +66,36 @@ function checkForRefOnly(entry, ftl, opts) {
 export function ftlToJSON(ftl, opts = {}) {
 	const res = parse(ftl);
 	const json = {};
-	const terms = {};
 	opts = { ...defaults, ...opts };
-	const { commentPrefix, storeTermsInJSON } = opts;
+	const { commentPrefix } = opts;
 	res.body.forEach((entry) => {
-		if (entry?.type === 'Term') {
-			terms[entry.id.name] = entry.value.elements.map(e => processElement(e, ftl, null, opts)).join('');
-		} else if (entry?.type === 'Message') {
-			if (entry.value?.type === 'Pattern') {
-				const usedTerms = [];
-				if (!checkForRefOnly(entry, ftl, opts)) {
-					const string = entry.value.elements.map(e => processElement(e, ftl, usedTerms, opts)).join('');
-					json[entry.id.name] = {
+		if (!['Term', 'Message'].includes(entry.type)) {
+			return;
+		}
+		if(opts.skipTerms && entry.type === 'Term') {
+			return;
+		}
+		const key = entry.type === 'Term' ? `-${entry.id.name}` : entry.id.name;
+		if (entry.value?.type === 'Pattern') {
+			if (!checkForRefOnly(entry, ftl, opts)) {
+				const string = entry.value.elements.map(e => processElement(e, ftl, opts)).join('');
+				json[key] = {
+					string,
+					...(entry.comment?.content.startsWith(commentPrefix) ? { developer_comment: entry.comment.content.slice(3).trim() } : {})
+				};
+			}
+		}
+		if (entry.attributes.length) {
+			entry.attributes.forEach((attr) => {
+				if(!checkForRefOnly(attr, ftl, opts)) {
+					const string = attr.value.elements.map(e => processElement(e, ftl, opts)).join('');
+					json[`${key}.${attr.id.name}`] = { 
 						string,
-						...(entry.comment?.content.startsWith(commentPrefix) ? { developer_comment: entry.comment.content.slice(3).trim() } : {}),
-						...(storeTermsInJSON && usedTerms.length ? { terms: Object.fromEntries(usedTerms.map(t => ([t, terms[t]]))) } : {})
+						...(entry.comment?.content.startsWith(commentPrefix) ? { developer_comment: entry.comment.content.slice(3).trim() } : {})
 					};
 				}
-			}
-			if (entry.attributes.length) {
-				entry.attributes.forEach((attr) => {
-					const usedTerms = [];
-					if(!checkForRefOnly(attr, ftl, opts)) {
-						const string = attr.value.elements.map(e => processElement(e, ftl, usedTerms, opts)).join('');
-						json[`${entry.id.name}.${attr.id.name}`] = { 
-							string,
-							...(entry.comment?.content.startsWith(commentPrefix) ? { developer_comment: entry.comment.content.slice(3).trim() } : {}),
-							...(storeTermsInJSON && usedTerms.length ? { terms: Object.fromEntries(usedTerms.map(t => ([t, terms[t]]))) } : {})
-						};
-					}
-				});
-			}
+			});
 		}
 	});
 	return json;
-}
-
-export function extractTerms(ftl) {
-	const res = parse(ftl);
-	const terms = {};
-	res.body.forEach((entry) => {
-		if (entry?.type === 'Term') {
-			terms[entry.id.name] = entry.value.elements.map(e => processElement(e, ftl, null, { transformTerms: false })).join('');
-		}
-	});
-	return terms;
 }

@@ -1,6 +1,6 @@
 import {
 	Attribute, CallArguments, Comment, FunctionReference, Identifier, Message, MessageReference, NumberLiteral, Pattern, Placeable,
-	Resource, NamedArgument, SelectExpression, serialize, StringLiteral, Term, TermReference, TextElement, VariableReference, Variant
+	Resource, NamedArgument, SelectExpression, serialize, StringLiteral, TermReference, TextElement, VariableReference, Variant
 } from "@fluent/syntax";
 import { checkForNonPlurals, defaults } from "./common.js";
 
@@ -25,7 +25,17 @@ function parseArgumentStrings(string) {
 	return { positional, named };
 }
 
-function parseString(string, msgKeys, foundTerms = [], opts = {}) {
+function checkPrefix(JSONPlaceable) {
+	if (JSONPlaceable.startsWith('$')) {
+		return new VariableReference(new Identifier(JSONPlaceable.slice(1)));
+	} else if (JSONPlaceable.startsWith('-')) {
+		return new TermReference(new Identifier(JSONPlaceable.slice(1)));
+	} else {
+		return new MessageReference(new Identifier(JSONPlaceable));
+	}
+}
+
+function parseString(string, opts = {}) {
 	const elements = [];
 	const nestLimit = opts.nestLimit * 2; // each nesting level adds 2 brackets
 	const pattern = new RegExp(`${'{(?:[^{}]|'.repeat(nestLimit)}{[^{}]*}${')*}'.repeat(nestLimit)}`, 'g');
@@ -34,7 +44,8 @@ function parseString(string, msgKeys, foundTerms = [], opts = {}) {
 	
 	while ((match = pattern.exec(string)) !== null) {
 		const [bracketedContent,] = match;
-		const selectorRegex = /^\{\s*(?<selector>\w+)(?<args>\((?:\$?\w+(?:,\s+)?)*(?:\w+:\s+(?:"\w*?"|\d+)(?:,\s+)?)*\))?\s*,\s*(?<type>plural|select)\s*,\s*(?<variants>(?:(?!^\{).)*)\}$/s;
+		
+		const selectorRegex = /^\{\s*(?<selector>([$\-\w])+)(?<args>\((?:\$?\w+(?:,\s+)?)*(?:\w+:\s+(?:"\w*?"|\d+)(?:,\s+)?)*\))?\s*,\s*(?<type>plural|select)\s*,\s*(?<variants>(?:(?!^\{).)*)\}$/s;
 		const functionRegex = /\{\s*(?<fn>\w+)(?<args>\((?:\$?\w+(?:,\s+)?)*(?:\w+:\s+(?:"\w*?"|\d+)(?:,\s+)?)*\))\s*\}/s;
 
 		if (match.index > start) {
@@ -65,7 +76,7 @@ function parseString(string, msgKeys, foundTerms = [], opts = {}) {
 
 					return new Variant(
 					typeof selector === 'number' ? new NumberLiteral(selector) : new Identifier(selector),
-						textNoBrackets.length ? new Pattern(parseString(textNoBrackets, msgKeys, foundTerms, opts)) : new Pattern([new Placeable(new StringLiteral(''))])
+						textNoBrackets.length ? new Pattern(parseString(textNoBrackets, opts)) : new Pattern([new Placeable(new StringLiteral(''))])
 				)}
 			);
 
@@ -85,12 +96,12 @@ function parseString(string, msgKeys, foundTerms = [], opts = {}) {
 				ftlSelector = new FunctionReference(
 					new Identifier(selector),
 					new CallArguments(
-						positional.map(id => new VariableReference(new Identifier(id))),
+						positional.map(id => checkPrefix(id)),
 						named.map(([name, value]) => new NamedArgument(new Identifier(name), new StringLiteral(value)))
 					)
 				);
 			} else {
-				ftlSelector = new VariableReference(new Identifier(selector));
+				ftlSelector = checkPrefix(selector);
 			}
 
 			elements.push(new Placeable(new SelectExpression(ftlSelector, ftlVariants)));
@@ -102,7 +113,7 @@ function parseString(string, msgKeys, foundTerms = [], opts = {}) {
 					new FunctionReference(
 						new Identifier(fn),
 						new CallArguments(
-							positional.map(id => new VariableReference(new Identifier(id))),
+							positional.map(id => checkPrefix(id)),
 							named.map(([name, value]) => new NamedArgument(new Identifier(name), value == parseInt(value) ? new NumberLiteral(value) : new StringLiteral(value)))
 						)
 					)
@@ -110,19 +121,7 @@ function parseString(string, msgKeys, foundTerms = [], opts = {}) {
 			);
 		} else {
 			const varName = bracketedContent.trim().slice(1, -1).trim();
-
-			if(msgKeys.has(varName)) {
-				elements.push(new Placeable(new MessageReference(new Identifier(varName))));
-			} else if (varName.startsWith(opts.termPrefix) || (!opts.transformTerms && varName.startsWith('-'))) {
-				const id = opts.transformTerms ?
-					varName.slice(opts.termPrefix.length).replaceAll('_', '-') :
-					varName.slice(1);
-				elements.push(new Placeable(new TermReference(new Identifier(id))));
-				foundTerms.add(id);
-			} else {
-				const id = new Identifier(varName.startsWith('$') ? varName.slice(1) : varName);
-				elements.push(new Placeable(new VariableReference(id)));
-			}
+			elements.push(new Placeable(checkPrefix(varName)));
 		}
 	}
 
@@ -135,47 +134,19 @@ function parseString(string, msgKeys, foundTerms = [], opts = {}) {
 
 export function JSONToFtl(json, opts = {}) {
 	const ftl = new Resource([]);
-	const termsMap = new Map();
-	const foundTerms = new Set();
-	const msgKeys = new Set(Object.keys(json));
 	opts = { ...defaults, ...opts };
 	for (const key in json) {
 		const attr = key.match(/\.([^.]+)$/)?.[1];
 		const msgName = attr ? key.slice(0, -attr.length - 1) : key;
 		const msgID = new Identifier(msgName);
 		const attrID = attr && new Identifier(attr);
-		const elements = parseString(json[key]?.string, msgKeys, foundTerms, opts);
+		const elements = parseString(json[key]?.string, opts);
 		const pattern = new Pattern(elements);
 		const comment = json[key]?.developer_comment ? new Comment(`tx: ${json[key].developer_comment}`) : null;
-		const JSONTerms = json[key]?.terms;
-		if (opts.storeTermsInJSON && JSONTerms) {
-			Object.entries(JSONTerms).map(([term, value]) => termsMap.set(term, value));
-		}
 		if(attr) {
 			ftl.body.find(m => m.id.name === msgName)?.attributes.push(new Attribute(attrID, pattern)) || ftl.body.push(new Message(msgID, null, [new Attribute(attrID, pattern)], comment));
 		} else {
 			ftl.body.push(new Message(msgID, pattern, [], comment));
-		}
-	}
-
-	if (!opts.storeTermsInJSON) {
-		const providedTerms = Object.keys(opts.terms ?? {});
-		foundTerms.forEach(term => {
-			if (!providedTerms.includes(term)) {
-				throw new Error(`Found term "${term}" in JSON, but it was not provided in the options`);
-			}
-		});
-		Object.entries(opts.terms).forEach(([term, value]) => termsMap.set(term, value));
-	}
-
-	if(opts.addTermsToFTL) {
-		const termKeys = [...termsMap.keys()];
-		termKeys.sort().reverse(); // since we're unshifting at the begining of the .ftl we need to start from the end, hence reverse()
-		for (const term of termKeys) {
-			const termID = new Identifier(term);
-			const termElements = parseString(termsMap.get(term), msgKeys, [], opts);
-			const termPattern = new Pattern(termElements);
-			ftl.body.unshift(new Term(termID, termPattern))
 		}
 	}
 

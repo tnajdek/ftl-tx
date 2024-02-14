@@ -5,12 +5,8 @@ export function checkForNonPlurals(ftlVariants) {
 }
 
 export const defaults = {
-    addTermsToFTL: true,
     commentPrefix: 'tx:',
     nestLimit: 10,
-    storeTermsInJSON: true,
-    termPrefix: 'FTLREF_',
-    terms: null,
-    transformTerms: true,
     skipRefOnly: false,
+    skipTerms: false,
 }
