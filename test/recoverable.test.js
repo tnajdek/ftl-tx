@@ -143,6 +143,52 @@ foo =
         );
     });
 
+    it('should skip var/term only messages, based on config', () => {
+        // variable only, skipRefOnly = false
+        assert.deepEqual(
+            ftlToJSON(`
+foo =
+    .aria-label = Lorem
+    .label = { $bar }
+`,
+            ),
+            { "foo.aria-label": { string: "Lorem" }, "foo.label": { string: "{ $bar }" } }
+        );
+        // variable only, skipRefOnly = true
+        assert.deepEqual(
+            ftlToJSON(`
+foo =
+    .aria-label = Lorem
+    .label = { $bar }
+`,
+                { skipRefOnly: true }
+            ),
+            { "foo.aria-label": { string: "Lorem" } }
+        );
+
+        // term only, skipRefOnly = false
+        assert.deepEqual(
+            ftlToJSON(`
+foo =
+    .aria-label = Lorem
+    .label = { -bar }
+`,
+            ),
+            { "foo.aria-label": { string: "Lorem" }, "foo.label": { string: "{ -bar }" } }
+        );
+        // term only, skipRefOnly = true
+        assert.deepEqual(
+            ftlToJSON(`
+foo =
+    .aria-label = Lorem
+    .label = { -bar }
+`,
+                { skipRefOnly: true }
+            ),
+            { "foo.aria-label": { string: "Lorem" } }
+        );
+    });
+
     it('should skip terms, based on config', () => {
         assert.deepEqual(
             ftlToJSON(

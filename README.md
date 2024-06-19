@@ -31,7 +31,7 @@ A limited set of features is supported, specifically:
 * `addTermsToFTL`, whether to include terms in produced FTL file, defaults to `true`
 * `commentPrefix`, prefix used for comments, defaults to `tx:`
 * `nestLimit`, maximum message nesting level, defaults to 10
-* `skipRefOnly`, whether to exclude messages that only include a reference to another message value from JSON output
+* `skipRefOnly`, whether to exclude from JSON output messages that only include a reference (to another message or to a term/variable)
 * `skipTerms`, whether to exclude terms from JSON output
 
 ## Examples
