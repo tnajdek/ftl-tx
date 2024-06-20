@@ -13,19 +13,19 @@ describe('Recoverable', () => {
     it('should handle various spacing around variables in JSON', () => {
         const expected = `string-with-var = This is a { $var } in string`;
         assert.equal(
-            JSONToFtl({ 'string-with-var': { string: 'This is a {$var} in string' } }).trim(),
+            JSONToFtl({ 'string-with-var': { string: 'This is a {var} in string' } }, expected).trim(),
             expected
         );
         assert.equal(
-            JSONToFtl({ 'string-with-var': { string: 'This is a {     $var} in string' } }).trim(),
+            JSONToFtl({ 'string-with-var': { string: 'This is a {     var} in string' } }, expected).trim(),
             expected
         );
         assert.equal(
-            JSONToFtl({ 'string-with-var': { string: 'This is a {     $var     } in string' } }).trim(),
+            JSONToFtl({ 'string-with-var': { string: 'This is a {     var     } in string' } }, expected).trim(),
             expected
         );
         assert.equal(
-            JSONToFtl({ 'string-with-var': { string: 'This is a {$var     } in string' } }).trim(),
+            JSONToFtl({ 'string-with-var': { string: 'This is a {var     } in string' } }, expected).trim(),
             expected
         );
     });
@@ -37,41 +37,43 @@ describe('Recoverable', () => {
        *[other] { $num } files
     }.`;
         assert.equal(
-            JSONToFtl({ 'string-with-plurals': { string: 'I have { $num, plural, one {{ $num } file} other {{ $num } files}}.' }}).trim(),
+            JSONToFtl({ 'string-with-plurals': { string: 'I have { num, plural, one {{ num } file} other {{ num } files}}.' } }, expected).trim(),
             expected
         );
 
         assert.equal(
-            JSONToFtl({ 'string-with-plurals': { string: 'I have {     $num,    plural   ,    one {{$num} file} other {{    $num    } files}}.' } }).trim(),
+            JSONToFtl({ 'string-with-plurals': { string: 'I have {     num,    plural   ,    one {{num} file} other {{    num    } files}}.' } }, expected).trim(),
             expected
         );
         
         assert.equal(
             JSONToFtl({ 'string-with-plurals': { string: 
-`I have { $num, plural,
-    one {{ $num } file}
-    other {{ $num } files}
-}.` } }).trim(),
+`I have { num, plural,
+    one {{ num } file}
+    other {{ num } files}
+}.` } }, expected).trim(),
             expected
         );
     });
 
     it('should mark "other" variant as default if present, otherwise fallback to the last item on the list', () => {
-        assert.equal(
-            JSONToFtl({ 'string-with-plurals': { string: 'I have { $num, plural, other {{ $num } files} one {{ $num } file} }.' } }).trim(),
+        const expectedOther = 
 `string-with-plurals =
     I have { $num ->
        *[other] { $num } files
         [one] { $num } file
-    }.`);
-
+    }.`;
         assert.equal(
-            JSONToFtl({ 'string-with-plurals': { string: 'I have { $num, plural, =1 {{ $num } file} =0 {{ $num } files} }.' } }).trim(),
+            JSONToFtl({ 'string-with-plurals': { string: 'I have { num, plural, other {{ num } files} one {{ num } file} }.' } }, expectedOther).trim(), expectedOther);
+
+        const expectedLast =
 `string-with-plurals =
     I have { $num ->
        *[0] { $num } files
         [1] { $num } file
-    }.`);
+    }.`;
+
+        assert.equal(JSONToFtl({ 'string-with-plurals': { string: 'I have { num, plural, =1 {{ num } file} =0 {{ num } files} }.' } }, expectedLast).trim(), expectedLast);
     });
 
     it('should convert a message with a string literal', () => {
@@ -152,7 +154,7 @@ foo =
     .label = { $bar }
 `,
             ),
-            { "foo.aria-label": { string: "Lorem" }, "foo.label": { string: "{ $bar }" } }
+            { "foo.aria-label": { string: "Lorem" }, "foo.label": { string: "{ bar }" } }
         );
         // variable only, skipRefOnly = true
         assert.deepEqual(
@@ -174,7 +176,7 @@ foo =
     .label = { -bar }
 `,
             ),
-            { "foo.aria-label": { string: "Lorem" }, "foo.label": { string: "{ -bar }" } }
+            { "foo.aria-label": { string: "Lorem" }, "foo.label": { string: "{ bar }" } }
         );
         // term only, skipRefOnly = true
         assert.deepEqual(
@@ -195,7 +197,7 @@ foo =
                 `-bar = lorem ipsum
 foo = { -bar }`, { skipTerms: false }
             ),
-            { '-bar': { string: 'lorem ipsum' }, foo: { string: "{ -bar }" } }
+            { '-bar': { string: 'lorem ipsum' }, foo: { string: "{ bar }" } }
         );
 
         assert.deepEqual(
@@ -203,7 +205,7 @@ foo = { -bar }`, { skipTerms: false }
 `-bar = lorem ipsum
 foo = { -bar }`, { skipTerms: true }
             ),
-            { foo: { string: "{ -bar }" } }
+            { foo: { string: "{ bar }" } }
         );
     });
 

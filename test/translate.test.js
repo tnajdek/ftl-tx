@@ -10,7 +10,7 @@ import { JSONToFtl } from '../src/json-to-ftl.js';
 
 function convert(ftl, json, opts = {}) {
     assert.deepEqual(ftlToJSON(ftl, opts), json, 'FTL -> JSON');
-    assert.equal(JSONToFtl(json, opts).trim(), ftl.trim(), 'JSON -> FTL');
+    assert.equal(JSONToFtl(json, ftl, opts).trim(), ftl.trim(), 'JSON -> FTL');
 }
 
 describe('Translate', () => {
@@ -36,7 +36,7 @@ describe('Translate', () => {
     it('should convert a message with a variable', () => {
         convert(
             `string-with-var = This is a { $var } in string`,
-            { 'string-with-var': { string: 'This is a { $var } in string' } }
+            { 'string-with-var': { string: 'This is a { var } in string' } }
         );
     });
 
@@ -49,7 +49,7 @@ string-with-ref = This is { -my-foo-ref } in a string. The answer is { -bar }`,
                 '-bar': { string: "42" },
                 '-my-foo-ref': { string: "foo" },
                 'string-with-ref': {
-                    string: 'This is { -my-foo-ref } in a string. The answer is { -bar }'
+                    string: 'This is { my-foo-ref } in a string. The answer is { bar }'
                 }
             }
         );
@@ -67,15 +67,15 @@ string-with-ref = This is { -my-foo-ref }.
                 '-bar': { string: "42" },
                 '-my-foo-ref': { string: "foo" },
                 'string-with-ref': {
-                    string: 'This is { -my-foo-ref }.',
+                    string: 'This is { my-foo-ref }.',
                     developer_comment: 'This comment applies to attributes as well'
                 },
                 'string-with-ref.label': {
-                    string: 'This is { -bar } in a string. It also has a variable { $var }.',
+                    string: 'This is { bar } in a string. It also has a variable { var }.',
                     developer_comment: 'This comment applies to attributes as well'
                 },
                 'string-with-ref.title': {
-                    string: 'This is { -my-foo-ref } in a string. Bar is { -bar }. It also has a variable { $var }.',
+                    string: 'This is { my-foo-ref } in a string. Bar is { bar }. It also has a variable { var }.',
                     developer_comment: 'This comment applies to attributes as well'
                 }
             }
@@ -89,7 +89,7 @@ string-with-both = { $foo } is here, { $bar } is there is no { -moo-boo }`,
             { 
                 '-moo-boo': { string: 'moo-boo' },
                 'string-with-both': {
-                string: '{ $foo } is here, { $bar } is there is no { -moo-boo }'
+                string: '{ foo } is here, { bar } is there is no { moo-boo }'
             } }
         );
     });
@@ -105,7 +105,7 @@ string-with-plurals =
             { 
                 '-my-app': { string: 'Doggo App' },
                 'string-with-plurals': {
-                    string: 'I have {$num, plural, one {{ $num } file} other {{ $num } files}} on my { $drive } in { -my-app }.'
+                    string: 'I have {num, plural, one {{ num } file} other {{ num } files}} on my { drive } in { my-app }.'
                 }
             }
         );
@@ -120,7 +120,7 @@ string-with-plurals =
        *[other] { $num } dogs
     }`,
             {
-                'string-with-plurals': { string: '{$num, plural, =0 {sadly no dogs} =1 {a dog} =2 {a pair of doggos} other {{ $num } dogs}}' }
+                'string-with-plurals': { string: '{num, plural, =0 {sadly no dogs} =1 {a dog} =2 {a pair of doggos} other {{ num } dogs}}' }
             }
         );
     });
@@ -134,7 +134,7 @@ string-with-plurals =
        *[other] meh
     }`,
             {
-                'string-with-select': { string: '{$animal, select, dog {woof!} cow {moo} other {meh}}' }
+                'string-with-select': { string: '{animal, select, dog {woof!} cow {moo} other {meh}}' }
             }
         );
     });
@@ -160,7 +160,7 @@ pets =
             {
                 '-dog-name': { string: 'Pixel'},
                 'pets': {
-                    string: 'I have {$pet, select, dog {{$num, plural, =0 {no dogs} =1 {a dog named { -dog-name }} other {many doggos}}} rat {{$num, plural, =0 {no rats} =1 {a rat} other {an infestation}}}}'
+                    string: 'I have {pet, select, dog {{num, plural, =0 {no dogs} =1 {a dog named { dog-name }} other {many doggos}}} rat {{num, plural, =0 {no rats} =1 {a rat} other {an infestation}}}}'
                 }
             }
         );
@@ -187,7 +187,7 @@ string-with-comment = This one has comment`,
 
         convert(
             `opening-brace = This message with a { $var } features an opening curly brace: {"{"}.`,
-            { 'opening-brace': { string: `This message with a { $var } features an opening curly brace: '{'.` } }
+            { 'opening-brace': { string: `This message with a { var } features an opening curly brace: '{'.` } }
         );
 
         convert(
@@ -203,7 +203,7 @@ string-with-comment = This one has comment`,
         [empty] { "" }
        *[other] { $var }
     }`,
-            { 'empty-variant': { string: `This message has an empty variant value: {$var, select, empty {} other {{ $var }}}` } }
+            { 'empty-variant': { string: `This message has an empty variant value: {var, select, empty {} other {{ var }}}` } }
         );
     });
 
@@ -243,7 +243,7 @@ deeply-nested =
             {
                 '-dog-name': { string: 'Pixel' },
                 'deeply-nested': {
-                    string: "I have {$num, plural, =0 {no {$thing, select, pet {{$pet, select, dog {dogs :(} other {pets}}} other {things}}} =1 {{$thing, select, pet {a pet. {$pet, select, dog {It's a dog. {$show_name, select, true {His name is { -dog-name }!} false {}}} other {It's not a dog :(}}} other {a thing. It's not a pet.}}} other {many {$thing, select, pet {pets} other {things}}}}"
+                    string: "I have {num, plural, =0 {no {thing, select, pet {{pet, select, dog {dogs :(} other {pets}}} other {things}}} =1 {{thing, select, pet {a pet. {pet, select, dog {It's a dog. {show_name, select, true {His name is { dog-name }!} false {}}} other {It's not a dog :(}}} other {a thing. It's not a pet.}}} other {many {thing, select, pet {pets} other {things}}}}"
                 }
             }
         );
@@ -255,7 +255,7 @@ deeply-nested =
     This is a multiline string.
      Second line.
      It has a { $var }.`,
-            { 'string-with-multiline': { string: "This is a multiline string.\n Second line.\n It has a { $var }." } }
+            { 'string-with-multiline': { string: "This is a multiline string.\n Second line.\n It has a { var }." } }
         );
     });
 
@@ -263,19 +263,19 @@ deeply-nested =
         convert(
             `string-with-fn = Last checked for { $user }: { DATETIME($lastChecked, day: 20, month: "long") }.`,
             {
-                'string-with-fn': { string: 'Last checked for { $user }: { DATETIME($lastChecked, day: 20, month: "long") }.' }
+                'string-with-fn': { string: 'Last checked for { user }: { DATETIME(lastChecked, day: 20, month: "long") }.' }
             }
         );
         convert(
             `string-with-fn = Last checked for { $user }: { DATETIME(day: 20, month: "long", empty: "") }.`,
             {
-                'string-with-fn': { string: 'Last checked for { $user }: { DATETIME(day: 20, month: "long", empty: "") }.' }
+                'string-with-fn': { string: 'Last checked for { user }: { DATETIME(day: 20, month: "long", empty: "") }.' }
             }
         );
         convert(
             `string-with-fn = Last checked for { $user }: { DATETIME($lastChecked) }.`,
             {
-                'string-with-fn': { string: 'Last checked for { $user }: { DATETIME($lastChecked) }.' }
+                'string-with-fn': { string: 'Last checked for { user }: { DATETIME(lastChecked) }.' }
             }
         );
     });
@@ -288,7 +288,7 @@ deeply-nested =
        *[other] Preferences for { $user }
     }`,
             {
-                'string-with-fn': { string: '{PLATFORM(), select, macos {Settings for { $user } on macOS} other {Preferences for { $user }}}' }
+                'string-with-fn': { string: '{PLATFORM(), select, macos {Settings for { user } on macOS} other {Preferences for { user }}}' }
             }
         );
     });
@@ -301,7 +301,7 @@ deeply-nested =
        *[other] lorem ipsum
     }`,
             {
-                'string-with-fn': { string: '{DATE($update, relative: "true"), select, today {carpe diem} other {lorem ipsum}}' }
+                'string-with-fn': { string: '{DATE(update, relative: "true"), select, today {carpe diem} other {lorem ipsum}}' }
             }
         );
 
@@ -323,7 +323,7 @@ deeply-nested =
        *[other] lorem ipsum
     }`,
             {
-                'string-with-fn': { string: '{DATE($update), select, today {carpe diem} other {lorem ipsum}}' }
+                'string-with-fn': { string: '{DATE(update), select, today {carpe diem} other {lorem ipsum}}' }
             }
         );
     });

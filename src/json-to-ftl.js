@@ -1,6 +1,6 @@
 import {
 	Attribute, CallArguments, Comment, FunctionReference, Identifier, Message, MessageReference, NumberLiteral, Pattern, Placeable,
-	Resource, NamedArgument, SelectExpression, serialize, StringLiteral, TermReference, TextElement, VariableReference, Variant
+	Resource, NamedArgument, SelectExpression, serialize, StringLiteral, TermReference, TextElement, VariableReference, Variant, parse
 } from "@fluent/syntax";
 import { checkForNonPlurals, defaults } from "./common.js";
 
@@ -25,17 +25,70 @@ function parseArgumentStrings(string) {
 	return { positional, named };
 }
 
-function checkPrefix(JSONPlaceable) {
-	if (JSONPlaceable.startsWith('$')) {
-		return new VariableReference(new Identifier(JSONPlaceable.slice(1)));
-	} else if (JSONPlaceable.startsWith('-')) {
-		return new TermReference(new Identifier(JSONPlaceable.slice(1)));
-	} else {
+function extractPlaceables(element, variables, terms, msgRefs) {
+	if (typeof variables === 'undefined') {
+		variables = new Set();
+	}
+	if (typeof terms === 'undefined') {
+		terms = new Set();
+	}
+
+	if (typeof msgRefs === 'undefined') {
+		msgRefs = new Set();
+	}
+
+	switch (element.type) {
+		case 'Message':
+			(element.value?.elements ?? []).forEach(e => extractPlaceables(e, variables, terms, msgRefs));
+			element.attributes.forEach(a => extractPlaceables(a.value, variables, terms, msgRefs));
+			break;
+		case 'SelectExpression':
+			extractPlaceables(element.selector, variables, terms, msgRefs);
+			element.variants.forEach(v => extractPlaceables(v, variables, terms, msgRefs));
+			break;
+		case 'Variant':
+			extractPlaceables(element.key, variables, terms, msgRefs);
+			extractPlaceables(element.value, variables, terms, msgRefs);
+			break;
+		case 'Placeable':
+			extractPlaceables(element.expression, variables, terms, msgRefs);
+			break;
+		case 'Pattern':
+			element.elements.forEach(e => extractPlaceables(e, variables, terms, msgRefs));
+			break;
+		case 'FunctionReference':
+			element.arguments.positional.forEach(e => extractPlaceables(e, variables, terms, msgRefs));
+			element.arguments.named.forEach(e => extractPlaceables(e.value, variables, terms, msgRefs));
+			break;
+		case 'VariableReference':
+			variables.add(element.id.name);
+			break;
+		case 'TermReference':
+			terms.add(element.id.name);
+			break;
+		case 'MessageReference':
+			msgRefs.add(element.attribute ? `${element.id.name}.${element.attribute.name}` : element.id.name);
+			break;
+	}
+
+	return { variables, terms, msgRefs };
+}
+
+function guessReferenceType(JSONPlaceable, baseFTLMsg) {
+	const { variables, terms, msgRefs } = extractPlaceables(baseFTLMsg)
+
+	if (variables.has(JSONPlaceable)) {
+		return new VariableReference(new Identifier(JSONPlaceable));
+	} else if (terms.has(JSONPlaceable)) {
+		return new TermReference(new Identifier(JSONPlaceable));
+	} else if (msgRefs.has(JSONPlaceable)) {
 		return new MessageReference(new Identifier(JSONPlaceable));
+	} else {
+		throw new Error(`Could not determine type of "${JSONPlaceable}" in message named "${baseFTLMsg.id.name}"`);
 	}
 }
 
-function parseString(string, opts = {}) {
+function parseString(string, baseFTLMsg, opts = {}) {
 	const elements = [];
 	const nestLimit = opts.nestLimit * 2; // each nesting level adds 2 brackets
 	const pattern = new RegExp(`${'{(?:[^{}]|'.repeat(nestLimit)}{[^{}]*}${')*}'.repeat(nestLimit)}`, 'g');
@@ -45,7 +98,7 @@ function parseString(string, opts = {}) {
 	while ((match = pattern.exec(string)) !== null) {
 		const [bracketedContent,] = match;
 		
-		const selectorRegex = /^\{\s*(?<selector>([$\-\w])+)(?<args>\((?:\$?\w+(?:,\s+)?)*(?:\w+:\s+(?:"\w*?"|\d+)(?:,\s+)?)*\))?\s*,\s*(?<type>plural|select)\s*,\s*(?<variants>(?:(?!^\{).)*)\}$/s;
+		const selectorRegex = /^\{\s*(?<selector>\w+)(?<args>\((?:\$?\w+(?:,\s+)?)*(?:\w+:\s+(?:"\w*?"|\d+)(?:,\s+)?)*\))?\s*,\s*(?<type>plural|select)\s*,\s*(?<variants>(?:(?!^\{).)*)\}$/s;
 		const functionRegex = /\{\s*(?<fn>\w+)(?<args>\((?:\$?\w+(?:,\s+)?)*(?:\w+:\s+(?:"\w*?"|\d+)(?:,\s+)?)*\))\s*\}/s;
 
 		if (match.index > start) {
@@ -76,7 +129,7 @@ function parseString(string, opts = {}) {
 
 					return new Variant(
 					typeof selector === 'number' ? new NumberLiteral(selector) : new Identifier(selector),
-						textNoBrackets.length ? new Pattern(parseString(textNoBrackets, opts)) : new Pattern([new Placeable(new StringLiteral(''))])
+						textNoBrackets.length ? new Pattern(parseString(textNoBrackets, baseFTLMsg, opts)) : new Pattern([new Placeable(new StringLiteral(''))])
 				)}
 			);
 
@@ -96,12 +149,12 @@ function parseString(string, opts = {}) {
 				ftlSelector = new FunctionReference(
 					new Identifier(selector),
 					new CallArguments(
-						positional.map(id => checkPrefix(id)),
+						positional.map(id => guessReferenceType(id, baseFTLMsg)),
 						named.map(([name, value]) => new NamedArgument(new Identifier(name), new StringLiteral(value)))
 					)
 				);
 			} else {
-				ftlSelector = checkPrefix(selector);
+				ftlSelector = guessReferenceType(selector, baseFTLMsg);
 			}
 
 			elements.push(new Placeable(new SelectExpression(ftlSelector, ftlVariants)));
@@ -113,7 +166,7 @@ function parseString(string, opts = {}) {
 					new FunctionReference(
 						new Identifier(fn),
 						new CallArguments(
-							positional.map(id => checkPrefix(id)),
+							positional.map(id => guessReferenceType(id, baseFTLMsg)),
 							named.map(([name, value]) => new NamedArgument(new Identifier(name), value == parseInt(value) ? new NumberLiteral(value) : new StringLiteral(value)))
 						)
 					)
@@ -121,7 +174,7 @@ function parseString(string, opts = {}) {
 			);
 		} else {
 			const varName = bracketedContent.trim().slice(1, -1).trim();
-			elements.push(new Placeable(checkPrefix(varName)));
+			elements.push(new Placeable(guessReferenceType(varName, baseFTLMsg)));
 		}
 	}
 
@@ -132,7 +185,12 @@ function parseString(string, opts = {}) {
 	return elements;
 }
 
-export function JSONToFtl(json, opts = {}) {
+export function JSONToFtl(json, baseFTL, opts = {}) {
+	if (!baseFTL || typeof(baseFTL) !== 'string') {
+		throw new Error('As of 0.11.0 Second argument to JSONToFTL must be string containing base FTL file.');
+	}
+	baseFTL = parse(baseFTL);
+
 	const ftl = new Resource([]);
 	opts = { ...defaults, ...opts };
 	for (const key in json) {
@@ -140,7 +198,14 @@ export function JSONToFtl(json, opts = {}) {
 		const msgName = attr ? key.slice(0, -attr.length - 1) : key;
 		const msgID = new Identifier(msgName);
 		const attrID = attr && new Identifier(attr);
-		const elements = parseString(json[key]?.string, opts);
+		const isTermDefinition = msgName.startsWith('-');
+		const baseFTLMsg = baseFTL.body.find((entry) => entry.id.name === msgName || (isTermDefinition && entry.id.name === msgName.slice(1)));
+		
+		if (!baseFTLMsg) {
+			throw new Error(`Message "${msgName}" not found in base FTL file.`);
+		}
+
+		const elements = parseString(json[key]?.string, baseFTLMsg, opts);
 		const pattern = new Pattern(elements);
 		const comment = json[key]?.developer_comment ? new Comment(`tx: ${json[key].developer_comment}`) : null;
 		if(attr) {

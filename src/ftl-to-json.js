@@ -1,15 +1,19 @@
 import { parse } from "@fluent/syntax";
 import { checkForNonPlurals, defaults } from "./common.js";
 
+function stringifyFunction(fnRef) {
+	const needsSeparator = fnRef.arguments.positional.length && fnRef.arguments.named.length;
+	return `${fnRef.id.name}(${fnRef.arguments.positional.map(pos => pos.id.name).join(', ')}${needsSeparator ? ', ' : ''}${fnRef.arguments.named.map(nm => nm.value.value == parseInt(nm.value.value) ? `${nm.name.name}: ${nm.value.value}` : `${nm.name.name}: "${nm.value.value}"`).join(', ')})`
+}
 
-function prefixPlaceable(placeable, ftl) {
+
+function prefixPlaceable(placeable) {
 	switch(placeable.type) {
 		case 'VariableReference':
-			return `$${placeable.id.name}`;
 		case 'TermReference':
-			return `-${placeable.id.name}`;
+			return placeable.id.name;
 		case 'FunctionReference':
-			return ftl.slice(placeable.span.start, placeable.span.end);
+			return stringifyFunction(placeable);
 		default:
 			return placeable.attribute ? `${placeable.id.name}.${placeable.attribute.name}` : placeable.id.name;
 	}
@@ -31,12 +35,12 @@ function processElement(element, ftl, opts = {}) {
 			throw new Error(`Unsupported selector type: ${element.expression.selector.type} (${ftl.slice(element.expression.selector.span.start, element.expression.selector.span.end)})`);
 		}
 
-		const ICUSelector = prefixPlaceable(element.expression.selector, ftl);
+		const ICUSelector = prefixPlaceable(element.expression.selector);
 		const selectType = checkForNonPlurals(element.expression.variants) ? 'select' : 'plural';
 		return `{${ICUSelector}, ${selectType}, ${ICUVariants}}`;
 	}
 	if (element.type === 'Placeable' && ['VariableReference', 'TermReference', 'FunctionReference', 'MessageReference'].includes(element.expression.type)) {
-		return `{ ${prefixPlaceable(element.expression, ftl)} }`;
+		return `{ ${prefixPlaceable(element.expression)} }`;
 	}
 	if (element.type === 'Placeable' && element.expression.type === 'StringLiteral') {
 		return element.expression.value.replaceAll(/({|})/g, `'$1'`);
