@@ -46,6 +46,18 @@ string-with-plurals = I have { $num ->
         }, 'Unsupported selector type: NumberLiteral (13)');
     });
 
+    it('should error if JSON contains a message not present in base FTL', () => {
+        assert.throws(() => {
+            JSONToFtl({ 'string-with-var': { string: 'This is a { foo } in string' } }, 'string-with-foo = This is a { $foo } in string')
+        }, 'Message "string-with-var" not found in base FTL');
+    });
+
+    it('should error when using pre 0.11.0 syntax, with no base FTL', () => {
+        assert.throws(() => {
+            JSONToFtl({ 'string-with-var': { string: 'This is a { $var } in string' } })
+        }, 'As of 0.11.0 Second argument to JSONToFTL must be string containing base FTL file.');
+    });
+
     it('should error when unknown variable is included in JSON', () => {
         assert.throws(() => {
             JSONToFtl({ 'string-with-var': { string: 'This is a { unknown } in string' } }, 'string-with-var = This is a { $var } in string')
@@ -56,18 +68,6 @@ string-with-plurals = I have { $num ->
         assert.throws(() => {
             JSONToFtl({ '-string-with-term': { string: 'This is a { unknown } in string' } }, '-string-with-term = This is a { -term } in string')
         }, 'Could not determine type of "unknown" in message named "string-with-term"');
-    });
-
-    it('should error when using pre 0.11.0 syntax, with no base FTL', () => {
-        assert.throws(() => {
-            JSONToFtl({ 'string-with-var': { string: 'This is a { $var } in string' } })
-        }, 'As of 0.11.0 Second argument to JSONToFTL must be string containing base FTL file.');
-    });
-
-    it('should error if JSON contains a message not present in base FTL', () => {
-        assert.throws(() => {
-            JSONToFtl({ 'string-with-var': { string: 'This is a { foo } in string' } }, 'string-with-foo = This is a { $foo } in string')
-        }, 'Message "string-with-var" not found in base FTL');
     });
 
     it('should error if FTL contains a var and term of the same name', () => {
@@ -121,5 +121,43 @@ string-with-plurals = I have { $num ->
     }`
             )
         });
+    });
+
+    it('should error if JSON is missing references from base FTL', () => {
+        assert.throws(() => {
+            JSONToFtl({ 'string-with-var': { string: 'This is a { foo } in string' } }, 'string-with-var = This is a { $foo } and a { $bar } in string')
+        }, 'Missing variable "bar" not found in processed JSON for "string-with-var" message');
+
+        assert.throws(() => {
+            JSONToFtl({ 'string-with-var': { string: 'This is a foo in string' } }, 'string-with-var = This is a { $foo } in string')
+        }, 'Missing variable "foo" not found in processed JSON for "string-with-var" message.');
+
+        assert.throws(() => {
+            JSONToFtl({ 'string-with-term': { string: 'This is a { foo } in string' } }, 'string-with-term = This is a { -foo } and a { -bar } in string')
+        }, 'Missing term "bar" not found in processed JSON for "string-with-term" message.');
+
+        assert.throws(() => {
+            JSONToFtl({ ref: { string: 'foobar' }, 'string-with-msg-ref.label': { string: 'ref' } },
+`ref = foobar
+string-with-msg-ref =
+    .label = { ref }`
+            )
+        }, 'Missing message reference "ref" not found in processed JSON for "string-with-msg-ref.label" message.');
+
+        assert.throws(() => {
+            JSONToFtl({ 'return-or-enter': { string: '{FOOBAR(), select, macos {Return} other {Enter}}' } },
+`return-or-enter =
+    { PLATFORM() ->
+        [macos] Return
+        *[other] Enter
+    }`
+            )
+        }, 'Missing function reference "PLATFORM" not found in processed JSON for "return-or-enter" message');
+    });
+
+    it('should error if JSON contains a function reference not present in base FTL', () => {
+        assert.throws(() => {
+            JSONToFtl({ 'string-with-fn': { string: 'This is a { UNKNOWN() } in string' } }, 'string-with-fn = This is a string')
+        }, 'Different number of references in "string-with-fn" message.');
     });
 });

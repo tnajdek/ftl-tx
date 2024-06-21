@@ -12,6 +12,9 @@ function walkFTLTree(node, fn, ...args) {
             (node.value?.elements ?? []).forEach(e => walkFTLTree(e, fn, args));
             node.attributes.forEach(a => walkFTLTree(a.value, fn, args));
             break;
+        case 'Attribute':
+            walkFTLTree(node.value, fn, args);
+            break;
         case 'SelectExpression':
             walkFTLTree(node.selector, fn, args);
             node.variants.forEach(v => walkFTLTree(v, fn, args));
@@ -33,17 +36,11 @@ function walkFTLTree(node, fn, ...args) {
     }
 }
 
-export function extractReferences(rootNode, variables, terms, msgRefs) {
-    if (typeof variables === 'undefined') {
-        variables = new Set();
-    }
-    if (typeof terms === 'undefined') {
-        terms = new Set();
-    }
-
-    if (typeof msgRefs === 'undefined') {
-        msgRefs = new Set();
-    }
+export function extractReferences(rootNode) {
+    const variables = new Set();
+    const terms = new Set();
+    const msgRefs = new Set();
+    const fnRefs = new Set();
 
     walkFTLTree(rootNode, node => {
         switch (node.type) {
@@ -56,10 +53,13 @@ export function extractReferences(rootNode, variables, terms, msgRefs) {
             case 'MessageReference':
                 msgRefs.add(node.attribute ? `${node.id.name}.${node.attribute.name}` : node.id.name);
                 break;
+            case 'FunctionReference':
+                fnRefs.add(node.id.name);
+                break;
         }
     });    
 
-    return { variables, terms, msgRefs };
+    return { variables, terms, msgRefs, fnRefs };
 }
 
 export function countSelectExpressions(rootNode) {

@@ -159,8 +159,30 @@ export function JSONToFtl(json, baseFTL, opts = {}) {
 		const elements = parseString(json[key]?.string, baseFTLMsg, opts);
 		const pattern = new Pattern(elements);
 
-		if (countSelectExpressions(pattern) !== countSelectExpressions(baseFTLMsg)) {
-			throw new Error(`Different number of select/plural expressions in "${msgName}" message.`);
+		// JSON only represents part of the message, either root or an attribute. We need to extract the corresponding part from the base FTL message.
+		const baseFTLRootOrAttr = attr ? baseFTLMsg.attributes.find(n => n.id.name === attr) : baseFTLMsg.value;
+
+		if (countSelectExpressions(pattern) !== countSelectExpressions(baseFTLRootOrAttr)) {
+			throw new Error(`Different number of select/plural expressions in "${key}" message.`);
+		}
+
+		const patternRefs = extractReferences(pattern);
+		const baseRefs = extractReferences(baseFTLRootOrAttr);
+
+		const lookup = { variables: 'variable', terms: 'term', msgRefs: 'message reference', fnRefs: 'function reference'};
+		Object.entries(lookup).forEach(([refType, descriptive]) => {
+			baseRefs[refType].forEach(ref => {
+				if (!patternRefs[refType].has(ref)) {
+					throw new Error(`Missing ${descriptive} "${ref}" not found in processed JSON for "${key}" message.`);
+				}
+			});
+		});
+
+		const parsedFTLRefCount = Object.values(patternRefs).reduce((totalSize, set) => totalSize += set.size, 0);
+		const baseFTLRefCount = Object.values(baseRefs).reduce((totalSize, set) => totalSize += set.size, 0);
+
+		if (parsedFTLRefCount !== baseFTLRefCount) {
+			throw new Error(`Different number of references in "${key}" message.`);
 		}
 
 		const comment = json[key]?.developer_comment ? new Comment(`tx: ${json[key].developer_comment}`) : null;
