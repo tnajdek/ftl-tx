@@ -1,5 +1,5 @@
 import { parse } from "@fluent/syntax";
-import { checkForNonPlurals, defaults } from "./common.js";
+import { checkForNonPlurals, extractReferences, defaults } from "./common.js";
 
 function stringifyFunction(fnRef) {
 	const needsSeparator = fnRef.arguments.positional.length && fnRef.arguments.named.length;
@@ -82,6 +82,16 @@ export function ftlToJSON(ftl, opts = {}) {
 		if(opts.skipTerms && entry.type === 'Term') {
 			return;
 		}
+
+		const { variables, terms, msgRefs } = extractReferences(entry);
+		// Set.prototype.intersection requires Node 22
+		const refsLength = variables.size + terms.size + msgRefs.size;
+		const mergedLength = (new Set([...variables, ...terms, ...msgRefs])).size;
+
+		if (refsLength !== mergedLength) {
+			throw new Error(`Duplicate reference found! Names must be unique between different reference types in the "${entry.id.name}" message.`);
+		}
+		
 		const key = entry.type === 'Term' ? `-${entry.id.name}` : entry.id.name;
 		if (entry.value?.type === 'Pattern') {
 			if (!checkForRefOnly(entry, ftl, opts)) {

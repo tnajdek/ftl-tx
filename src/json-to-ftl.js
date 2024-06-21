@@ -2,7 +2,7 @@ import {
 	Attribute, CallArguments, Comment, FunctionReference, Identifier, Message, MessageReference, NumberLiteral, Pattern, Placeable,
 	Resource, NamedArgument, SelectExpression, serialize, StringLiteral, TermReference, TextElement, VariableReference, Variant, parse
 } from "@fluent/syntax";
-import { checkForNonPlurals, defaults } from "./common.js";
+import { checkForNonPlurals, extractReferences, defaults } from "./common.js";
 
 function parseArgumentStrings(string) {
 	if(string.trim().length === 0) {
@@ -25,57 +25,8 @@ function parseArgumentStrings(string) {
 	return { positional, named };
 }
 
-function extractPlaceables(element, variables, terms, msgRefs) {
-	if (typeof variables === 'undefined') {
-		variables = new Set();
-	}
-	if (typeof terms === 'undefined') {
-		terms = new Set();
-	}
-
-	if (typeof msgRefs === 'undefined') {
-		msgRefs = new Set();
-	}
-
-	switch (element.type) {
-		case 'Message':
-			(element.value?.elements ?? []).forEach(e => extractPlaceables(e, variables, terms, msgRefs));
-			element.attributes.forEach(a => extractPlaceables(a.value, variables, terms, msgRefs));
-			break;
-		case 'SelectExpression':
-			extractPlaceables(element.selector, variables, terms, msgRefs);
-			element.variants.forEach(v => extractPlaceables(v, variables, terms, msgRefs));
-			break;
-		case 'Variant':
-			extractPlaceables(element.key, variables, terms, msgRefs);
-			extractPlaceables(element.value, variables, terms, msgRefs);
-			break;
-		case 'Placeable':
-			extractPlaceables(element.expression, variables, terms, msgRefs);
-			break;
-		case 'Pattern':
-			element.elements.forEach(e => extractPlaceables(e, variables, terms, msgRefs));
-			break;
-		case 'FunctionReference':
-			element.arguments.positional.forEach(e => extractPlaceables(e, variables, terms, msgRefs));
-			element.arguments.named.forEach(e => extractPlaceables(e.value, variables, terms, msgRefs));
-			break;
-		case 'VariableReference':
-			variables.add(element.id.name);
-			break;
-		case 'TermReference':
-			terms.add(element.id.name);
-			break;
-		case 'MessageReference':
-			msgRefs.add(element.attribute ? `${element.id.name}.${element.attribute.name}` : element.id.name);
-			break;
-	}
-
-	return { variables, terms, msgRefs };
-}
-
 function guessReferenceType(JSONPlaceable, baseFTLMsg) {
-	const { variables, terms, msgRefs } = extractPlaceables(baseFTLMsg)
+	const { variables, terms, msgRefs } = extractReferences(baseFTLMsg)
 
 	if (variables.has(JSONPlaceable)) {
 		return new VariableReference(new Identifier(JSONPlaceable));

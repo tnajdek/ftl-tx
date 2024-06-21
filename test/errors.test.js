@@ -69,4 +69,13 @@ string-with-plurals = I have { $num ->
             JSONToFtl({ 'string-with-var': { string: 'This is a { foo } in string' } }, 'string-with-foo = This is a { $foo } in string')
         }, 'Message "string-with-var" not found in base FTL');
     });
+
+    it('should error if FTL contains a var and term of the same name', () => {
+        assert.throws(() => {
+            ftlToJSON(
+`string-with-var-and-term = This is a { $foo } which is a var. This is a { -foo } which is a term.`
+            )
+        }
+        , 'Duplicate reference found! Names must be unique between different reference types in the "string-with-var-and-term" message.');
+    });
 });
