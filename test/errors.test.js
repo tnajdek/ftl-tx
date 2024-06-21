@@ -78,4 +78,48 @@ string-with-plurals = I have { $num ->
         }
         , 'Duplicate reference found! Names must be unique between different reference types in the "string-with-var-and-term" message.');
     });
+
+    it('should error if JSON has different number of select/plural expressions than base FTL', () => {
+        assert.throws(() => {
+            JSONToFtl({ 'string-with-plurals': { string: 'num, plural, one { num } file other { num } files' } },
+`string-with-plurals = 
+    { $num ->
+        [one] { $num } file
+       *[other] { $num } files
+    }`
+            )
+        }, 'Different number of select/plural expressions in "string-with-plurals" message.');
+
+        assert.throws(() => {
+            JSONToFtl({ 'string-with-many-plurals': { string: '{num, plural, one { num } file other { num } files} and { count }' } },
+`string-with-many-plurals =
+    { $num ->
+        [one] { $num } file
+       *[other] { $num } files
+    } and { $count ->
+        [one] just one
+        *[other] many
+    }`
+            )
+        }, 'Different number of select/plural expressions in "string-with-many-plurals" message.');
+
+        assert.throws(() => {
+            JSONToFtl(
+                { 'string-with-no-plurals': { string: '{num, plural, one {{ num } file} other {{ num } files}}' } },
+                `string-with-no-plurals = { $num }, plural, one { $num } file other { $num } files`
+            )
+        }, 'Different number of select/plural expressions in "string-with-no-plurals" message.');
+
+        // different number of variants is OK
+        assert.doesNotThrow(() => {
+            JSONToFtl(
+                { 'string-with-plurals': { string: '{num, plural, one {one file} two { two files} other {{ num } files}}' } },
+`string-with-plurals =
+    { $num ->
+        [one] { $num } file
+       *[other] { $num } files
+    }`
+            )
+        });
+    });
 });

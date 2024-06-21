@@ -4,7 +4,36 @@ export function checkForNonPlurals(ftlVariants) {
     return notLikePlural;
 }
 
-export function extractReferences(element, variables, terms, msgRefs) {
+function walkFTLTree(node, fn, ...args) {
+    fn(node, ...args);
+
+    switch (node.type) {
+        case 'Message':
+            (node.value?.elements ?? []).forEach(e => walkFTLTree(e, fn, args));
+            node.attributes.forEach(a => walkFTLTree(a.value, fn, args));
+            break;
+        case 'SelectExpression':
+            walkFTLTree(node.selector, fn, args);
+            node.variants.forEach(v => walkFTLTree(v, fn, args));
+            break;
+        case 'Variant':
+            walkFTLTree(node.key, fn, args);
+            walkFTLTree(node.value, fn, args);
+            break;
+        case 'Placeable':
+            walkFTLTree(node.expression, fn, args);
+            break;
+        case 'Pattern':
+            node.elements.forEach(e => walkFTLTree(e, fn, args));
+            break;
+        case 'FunctionReference':
+            node.arguments.positional.forEach(e => walkFTLTree(e, fn, args));
+            node.arguments.named.forEach(e => walkFTLTree(e.value, fn, args));
+            break;
+    }
+}
+
+export function extractReferences(rootNode, variables, terms, msgRefs) {
     if (typeof variables === 'undefined') {
         variables = new Set();
     }
@@ -16,41 +45,32 @@ export function extractReferences(element, variables, terms, msgRefs) {
         msgRefs = new Set();
     }
 
-    switch (element.type) {
-        case 'Message':
-            (element.value?.elements ?? []).forEach(e => extractReferences(e, variables, terms, msgRefs));
-            element.attributes.forEach(a => extractReferences(a.value, variables, terms, msgRefs));
-            break;
-        case 'SelectExpression':
-            extractReferences(element.selector, variables, terms, msgRefs);
-            element.variants.forEach(v => extractReferences(v, variables, terms, msgRefs));
-            break;
-        case 'Variant':
-            extractReferences(element.key, variables, terms, msgRefs);
-            extractReferences(element.value, variables, terms, msgRefs);
-            break;
-        case 'Placeable':
-            extractReferences(element.expression, variables, terms, msgRefs);
-            break;
-        case 'Pattern':
-            element.elements.forEach(e => extractReferences(e, variables, terms, msgRefs));
-            break;
-        case 'FunctionReference':
-            element.arguments.positional.forEach(e => extractReferences(e, variables, terms, msgRefs));
-            element.arguments.named.forEach(e => extractReferences(e.value, variables, terms, msgRefs));
-            break;
-        case 'VariableReference':
-            variables.add(element.id.name);
-            break;
-        case 'TermReference':
-            terms.add(element.id.name);
-            break;
-        case 'MessageReference':
-            msgRefs.add(element.attribute ? `${element.id.name}.${element.attribute.name}` : element.id.name);
-            break;
-    }
+    walkFTLTree(rootNode, node => {
+        switch (node.type) {
+            case 'VariableReference':
+                variables.add(node.id.name);
+                break;
+            case 'TermReference':
+                terms.add(node.id.name);
+                break;
+            case 'MessageReference':
+                msgRefs.add(node.attribute ? `${node.id.name}.${node.attribute.name}` : node.id.name);
+                break;
+        }
+    });    
 
     return { variables, terms, msgRefs };
+}
+
+export function countSelectExpressions(rootNode) {
+    let count = 0;
+    walkFTLTree(rootNode, node => {
+        if (node.type === 'SelectExpression') {
+            count++;
+        }
+    });
+
+    return count;
 }
 
 export const defaults = {

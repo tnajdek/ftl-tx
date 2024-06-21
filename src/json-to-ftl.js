@@ -2,7 +2,7 @@ import {
 	Attribute, CallArguments, Comment, FunctionReference, Identifier, Message, MessageReference, NumberLiteral, Pattern, Placeable,
 	Resource, NamedArgument, SelectExpression, serialize, StringLiteral, TermReference, TextElement, VariableReference, Variant, parse
 } from "@fluent/syntax";
-import { checkForNonPlurals, extractReferences, defaults } from "./common.js";
+import { checkForNonPlurals, countSelectExpressions, extractReferences, defaults } from "./common.js";
 
 function parseArgumentStrings(string) {
 	if(string.trim().length === 0) {
@@ -45,7 +45,7 @@ function parseString(string, baseFTLMsg, opts = {}) {
 	const pattern = new RegExp(`${'{(?:[^{}]|'.repeat(nestLimit)}{[^{}]*}${')*}'.repeat(nestLimit)}`, 'g');
 	let start = 0;
 	let match;
-	
+
 	while ((match = pattern.exec(string)) !== null) {
 		const [bracketedContent,] = match;
 		
@@ -150,7 +150,7 @@ export function JSONToFtl(json, baseFTL, opts = {}) {
 		const msgID = new Identifier(msgName);
 		const attrID = attr && new Identifier(attr);
 		const isTermDefinition = msgName.startsWith('-');
-		const baseFTLMsg = baseFTL.body.find((entry) => entry.id.name === msgName || (isTermDefinition && entry.id.name === msgName.slice(1)));
+		const baseFTLMsg = baseFTL.body.find((entry) => entry?.id?.name === msgName || (isTermDefinition && entry?.id?.name === msgName.slice(1)));
 		
 		if (!baseFTLMsg) {
 			throw new Error(`Message "${msgName}" not found in base FTL file.`);
@@ -158,6 +158,11 @@ export function JSONToFtl(json, baseFTL, opts = {}) {
 
 		const elements = parseString(json[key]?.string, baseFTLMsg, opts);
 		const pattern = new Pattern(elements);
+
+		if (countSelectExpressions(pattern) !== countSelectExpressions(baseFTLMsg)) {
+			throw new Error(`Different number of select/plural expressions in "${msgName}" message.`);
+		}
+
 		const comment = json[key]?.developer_comment ? new Comment(`tx: ${json[key].developer_comment}`) : null;
 		if(attr) {
 			ftl.body.find(m => m.id.name === msgName)?.attributes.push(new Attribute(attrID, pattern)) || ftl.body.push(new Message(msgID, null, [new Attribute(attrID, pattern)], comment));
