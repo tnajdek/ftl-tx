@@ -70,6 +70,18 @@ describe('Recoverable', () => {
         );
     });
 
+    it("should trim trailing and leading whitespace in plurals", () => {
+        const expected =
+`string-with-plurals =
+    I have { $num ->
+        [one] { $num } file
+       *[other] { $num } files
+    }.`;
+
+    assert.equal(
+        JSONToFtl({ 'string-with-plurals': { string: 'I have { num, plural, one {   { num } file   } other {   { num } files}   }.' } }, expected).trim(), expected);
+    });
+
     it('should mark "other" variant as default if present, otherwise fallback to the last item on the list', () => {
         const expectedOther = 
 `string-with-plurals =

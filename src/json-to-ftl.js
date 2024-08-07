@@ -76,7 +76,7 @@ function parseString(string, baseFTLMsg, opts = {}) {
 					if (selectType === 'plural' && selector == parseInt(selector, 10)) {
 						selector = parseInt(selector, 10);
 					}
-					const textNoBrackets = text.slice(1, -1);
+					const textNoBrackets = text.slice(1, -1).trim();
 
 					return new Variant(
 					typeof selector === 'number' ? new NumberLiteral(selector) : new Identifier(selector),
