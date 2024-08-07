@@ -156,7 +156,7 @@ export function JSONToFtl(json, baseFTL, opts = {}) {
 			throw new Error(`Message "${msgName}" not found in base FTL file.`);
 		}
 
-		const elements = parseString(json[key]?.string, baseFTLMsg, opts);
+		const elements = parseString(json[key]?.string.trim(), baseFTLMsg, opts);
 		const pattern = new Pattern(elements);
 
 		// JSON only represents part of the message, either root or an attribute. We need to extract the corresponding part from the base FTL message.

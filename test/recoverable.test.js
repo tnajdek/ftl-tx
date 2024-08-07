@@ -56,6 +56,20 @@ describe('Recoverable', () => {
         );
     });
 
+    it("should trim trailing and leading whitespace", () => {
+        const expected = `string-with-whitespace = This is a string with whitespace.`;
+        assert.equal(
+            JSONToFtl({ 'string-with-whitespace': { string: '  This is a string with whitespace.  ' } }, expected).trim(),
+            expected
+        );
+        
+        const expected2 = `string-with-var-and-whitespace = { $var } at the beginning and end { $var }`;
+        assert.equal(
+            JSONToFtl({ 'string-with-var-and-whitespace': { string: '  {var} at the beginning and end {var}  ' } }, expected2).trim(),
+            expected2
+        );
+    });
+
     it('should mark "other" variant as default if present, otherwise fallback to the last item on the list', () => {
         const expectedOther = 
 `string-with-plurals =
