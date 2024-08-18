@@ -1,6 +1,6 @@
 {
   "name": "ftl-tx",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "description": "Converts .ftl to JSON with ICU Messages and back",
   "main": "index.js",
   "type": "module",
