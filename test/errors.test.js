@@ -7,6 +7,7 @@
 import { assert } from 'chai';
 import { JSONToFtl } from '../src/json-to-ftl.js';
 import { ftlToJSON } from '../src/ftl-to-json.js';
+import sinon from 'sinon';
 
 
 describe('Errors', () => {
@@ -46,10 +47,24 @@ string-with-plurals = I have { $num ->
         }, 'Unsupported selector type: NumberLiteral (13)');
     });
 
-    it('should error if JSON contains a message not present in base FTL', () => {
-        assert.throws(() => {
+    it('should print a warning when JSON contains a message not present in base FTL', () => {
+        let stub = sinon.stub(console, 'warn');
+        stub.returns();
+        assert.doesNotThrow(() => {
             JSONToFtl({ 'string-with-var': { string: 'This is a { foo } in string' } }, 'string-with-foo = This is a { $foo } in string')
-        }, 'Message "string-with-var" not found in base FTL');
+        }, );
+        assert(stub.calledWith('The following message was found in JSON but not in the base FTL and will be skipped: "string-with-var"'));
+        stub.restore();
+    });
+
+    it('should print a warning when JSON contains a message and attribute not present in base FTL', () => {
+        let stub = sinon.stub(console, 'warn');
+        stub.returns();
+        assert.doesNotThrow(() => {
+            JSONToFtl({ 'string-with-var.label': { string: 'This is a { foo } in string' } }, 'string-with-var = This is a { $foo } in string')
+        });
+        assert(stub.calledWith('The following message and attribute were found in JSON but not in the base FTL and will be skipped: "string-with-var.label"'));
+        stub.restore();
     });
 
     it('should error when using pre 0.11.0 syntax, with no base FTL', () => {

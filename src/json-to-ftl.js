@@ -153,21 +153,27 @@ export function JSONToFtl(json, baseFTL, opts = {}) {
 		const baseFTLMsg = baseFTL.body.find((entry) => entry?.id?.name === msgName || (isTermDefinition && entry?.id?.name === msgName.slice(1)));
 		
 		if (!baseFTLMsg) {
-			throw new Error(`Message "${msgName}" not found in base FTL file.`);
+			console.warn(`The following message was found in JSON but not in the base FTL and will be skipped: "${key}"`);
+			continue
+		}
+
+		// JSON only represents part of the message, either root or an attribute. We need to extract the corresponding part from the base FTL message.
+		const baseFTLRootOrAttr = attr ? baseFTLMsg.attributes.find(n => n.id.name === attr) : baseFTLMsg;
+
+		if (!baseFTLRootOrAttr) {
+			console.warn(`The following message and attribute were found in JSON but not in the base FTL and will be skipped: "${key}"`);
+			continue
 		}
 
 		const elements = parseString(json[key]?.string.trim(), baseFTLMsg, opts);
 		const pattern = new Pattern(elements);
-
-		// JSON only represents part of the message, either root or an attribute. We need to extract the corresponding part from the base FTL message.
-		const baseFTLRootOrAttr = attr ? baseFTLMsg.attributes.find(n => n.id.name === attr) : baseFTLMsg.value;
 
 		if (countSelectExpressions(pattern) !== countSelectExpressions(baseFTLRootOrAttr)) {
 			throw new Error(`Different number of select/plural expressions in "${key}" message.`);
 		}
 
 		const patternRefs = extractReferences(pattern);
-		const baseRefs = extractReferences(baseFTLRootOrAttr);
+		const baseRefs = extractReferences(baseFTLRootOrAttr.value);
 
 		const lookup = { variables: 'variable', terms: 'term', msgRefs: 'message reference', fnRefs: 'function reference'};
 		Object.entries(lookup).forEach(([refType, descriptive]) => {
