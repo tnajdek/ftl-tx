@@ -62,9 +62,14 @@ function checkForRefOnly(entry, ftl, opts) {
 	}
 	const ignoredTypes = ['MessageReference', 'VariableReference', 'TermReference'];
 	const element = entry.value.elements[0];
-	
+
 	if (element.type === 'Placeable' && ignoredTypes.includes(element.expression.type)) {
 		return true;
+	}
+	if (element.type === 'Placeable' && element.expression.type === 'SelectExpression') {
+		return element.expression.variants.every(v => {
+			return checkForRefOnly(v, ftl, opts);
+		});
 	}
 
 	return false;

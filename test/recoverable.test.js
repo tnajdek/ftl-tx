@@ -215,6 +215,77 @@ foo =
             ),
             { "foo.aria-label": { string: "Lorem" } }
         );
+
+        // with conditionals, all refs, should be skipped (zotero/zotero#4759)
+        assert.deepEqual(
+            ftlToJSON(
+                `bar = lorem ipsum
+foo =
+     { PLATFORM() ->
+        [macos] { general-key-option }
+        *[other] { general-key-alt }
+    }`
+, { skipRefOnly: true }
+            ),
+            { bar: { string: "lorem ipsum" } }
+        );
+
+        // with conditionals, mixed refs, must be included (zotero/zotero#4759)
+        assert.deepEqual(
+            ftlToJSON(
+                `bar = lorem ipsum
+foo =
+     { PLATFORM() ->
+        [macos] { general-key-option }
+        *[other] Alt
+    }`
+                , { skipRefOnly: true }
+            ),
+            {
+                bar: { string: "lorem ipsum" },
+                foo: { string: '{PLATFORM(), select, macos {{ general-key-option }} other {Alt}}' }
+            }
+        );
+
+        // with conditionals, nested, all refs, should be skipped (zotero/zotero#4759)
+        assert.deepEqual(
+            ftlToJSON(
+                `bar = lorem ipsum
+foo =
+     { PLATFORM() ->
+        [macos] {
+            $key ->
+                [option] { general-key-option }
+                *[other] { general-key-alt }
+            }
+        *[other] { general-key-alt }
+    }`
+                , { skipRefOnly: true }
+            ),
+            { bar: { string: "lorem ipsum" } }
+        );
+
+        // with conditionals, nested, mixed refs, must be included (zotero/zotero#4759)
+        assert.deepEqual(
+            ftlToJSON(
+                `bar = lorem ipsum
+foo =
+     { PLATFORM() ->
+        [macos] {
+            $key ->
+                [option] { general-key-option }
+                *[other] { general-key-ctrl } and { general-key-shift }
+            }
+        *[other] { general-key-alt }
+    }`
+                , { skipRefOnly: true }
+            ),
+            {
+                bar: { string: "lorem ipsum" },
+                foo: { string: '{PLATFORM(), select, macos {{key, select, option {{ general-key-option }} other {{ general-key-ctrl } and { general-key-shift }}}} other {{ general-key-alt }}}' }
+            }
+        );
+
     });
 
     it('should skip terms, based on config', () => {
