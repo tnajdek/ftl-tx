@@ -360,5 +360,19 @@ string-with-msg-ref =
             { 'nested.ref': { string: 'foobar' }, 'string-with-msg-ref.label': { string: 'This message has a { nested.ref }.' } }
         );
     });
-    
+
+    it('should convert a term with references', () => {
+        convert(
+`bar = 42
+-other-term = foo
+-term-with-ref = This is { -other-term } in a string. The answer is { bar }`,
+            {
+                'bar': { string: "42" },
+                '-other-term': { string: "foo" },
+                '-term-with-ref': {
+                    string: 'This is { other-term } in a string. The answer is { bar }'
+                }
+            }
+        );
+    });
 });

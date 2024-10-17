@@ -8,6 +8,7 @@ function walkFTLTree(node, fn, ...args) {
     fn(node, ...args);
 
     switch (node.type) {
+        case 'Term':
         case 'Message':
             (node.value?.elements ?? []).forEach(e => walkFTLTree(e, fn, args));
             node.attributes.forEach(a => walkFTLTree(a.value, fn, args));
