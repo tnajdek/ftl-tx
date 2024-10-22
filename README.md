@@ -21,8 +21,6 @@ A limited set of features is supported, specifically:
 
 * attributes are translated into new messages, with the attribute name concatenated with the message key to create a new message key
 * fluent [functions](https://projectfluent.org/fluent/guide/functions.html)  (including [built-in functions](https://projectfluent.org/fluent/guide/builtins.html)) will be correctly transcoded to ICU and back, including when used as selectors, but obviously won't work in ICU format.
-* [message referencing](https://projectfluent.org/fluent/guide/references.html) is not supported
-* [terms](https://projectfluent.org/fluent/guide/terms.html) are converted to variables, prefixed with `FTLREF_` and with "-" replaced as "_"
 * All comments are ignored, except for [message-bound comments](https://projectfluent.org/fluent/guide/comments.html) prefixed `tx: `
 * Message nesting level is limited to 10 levels (using a variable/reference inside a variant value "costs" 0.5 level). This value is configurable and can be increased at a slight performance cost
 
