@@ -80,3 +80,8 @@ export const defaults = {
     skipRefOnly: false,
     skipTerms: false,
 }
+
+export const builtInFunctions = new Set([
+    'NUMBER',
+    'DATETIME',
+]);

@@ -361,6 +361,15 @@ string-with-msg-ref =
         );
     });
 
+    it('should convert a message that references an attribute of another message', () => {
+        convert(
+`other-message =
+    .label = foo
+message-with-ref = { other-message.label }`,
+            { 'other-message.label': { string: 'foo' }, 'message-with-ref': { string: '{ other-message.label }' } }
+        );
+    });
+
     it('should convert a term with references', () => {
         convert(
 `bar = 42
@@ -372,6 +381,45 @@ string-with-msg-ref =
                 '-term-with-ref': {
                     string: 'This is { other-term } in a string. The answer is { bar }'
                 }
+            }
+        );
+    });
+
+    it('should convert a message with only message references as variants', () => {
+        convert(
+`message =
+    { PLATFORM() ->
+        [macos] { general-key-option }
+       *[other] { general-key-alt }
+    }`
+            ,
+            {
+                'message': { string: '{PLATFORM(), select, macos {{ general-key-option }} other {{ general-key-alt }}}' }
+            }
+        );
+    });
+
+    it('should convert a message that references a term with arguments', () => {
+        convert(
+`-term-with-a-var = This is a { $var } in a term
+foo-message =
+    .label = { -term-with-a-var(var: "foo") }`,
+            {
+                '-term-with-a-var': { string: 'This is a { var } in a term' },
+                'foo-message.label': { string: '{ term-with-a-var(var: "foo") }' }
+            }
+        );
+        convert(
+`-option-or-left-alt =
+    { $platform ->
+        [macos] { general-key-option }
+       *[other] Left { general-key-alt }
+    }
+instruction = Press { -option-or-left-alt(platform: "macos") } key to open the menu.`,
+
+            {
+                '-option-or-left-alt': { string: '{platform, select, macos {{ general-key-option }} other {Left { general-key-alt }}}' },
+                'instruction': { string: 'Press { option-or-left-alt(platform: "macos") } key to open the menu.' }
             }
         );
     });

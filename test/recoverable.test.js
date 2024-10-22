@@ -285,7 +285,34 @@ foo =
                 foo: { string: '{PLATFORM(), select, macos {{key, select, option {{ general-key-option }} other {{ general-key-ctrl } and { general-key-shift }}}} other {{ general-key-alt }}}' }
             }
         );
+    });
 
+    it('should skip messages that contain no literal data, term with call arguments', () => {
+        // term reference with call arguments but no literal data, should be skipped
+        assert.deepEqual(
+            ftlToJSON(
+`-term-with-a-var = This is a { $var } in a term
+foo = { -term-with-a-var("arg") }`,
+                { skipRefOnly: true }
+            ),
+            { "-term-with-a-var": { string: "This is a { var } in a term" } }
+        );
+
+        // term reference with call arguments and literal data, should be included
+        assert.deepEqual(
+            ftlToJSON(
+`-option-or-alt =
+    { $platform ->
+        [macos] { general-key-option }
+       *[other] { general-key-alt }
+    }
+instruction = Press { -option-or-alt(platform: "macos") } key to open the menu.`,
+                { skipRefOnly: true }
+            ),
+            {
+                instruction: { string: 'Press { option-or-alt(platform: "macos") } key to open the menu.' },
+            }
+        );
     });
 
     it('should skip terms, based on config', () => {

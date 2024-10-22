@@ -1,7 +1,7 @@
 import { parse } from "@fluent/syntax";
 import { checkForNonPlurals, extractReferences, defaults } from "./common.js";
 
-function stringifyFunction(fnRef) {
+function stringifyRefWithArguments(fnRef) {
 	const needsSeparator = fnRef.arguments.positional.length && fnRef.arguments.named.length;
 	return `${fnRef.id.name}(${fnRef.arguments.positional.map(pos => pos.id.name).join(', ')}${needsSeparator ? ', ' : ''}${fnRef.arguments.named.map(nm => nm.value.value == parseInt(nm.value.value) ? `${nm.name.name}: ${nm.value.value}` : `${nm.name.name}: "${nm.value.value}"`).join(', ')})`
 }
@@ -11,9 +11,9 @@ function prefixPlaceable(placeable) {
 	switch(placeable.type) {
 		case 'VariableReference':
 		case 'TermReference':
-			return placeable.id.name;
+			return (placeable.arguments?.positional?.length || placeable.arguments?.named?.length) ? stringifyRefWithArguments(placeable) : placeable.id.name;
 		case 'FunctionReference':
-			return stringifyFunction(placeable);
+			return stringifyRefWithArguments(placeable);
 		default:
 			return placeable.attribute ? `${placeable.id.name}.${placeable.attribute.name}` : placeable.id.name;
 	}

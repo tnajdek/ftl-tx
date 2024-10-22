@@ -173,6 +173,12 @@ string-with-msg-ref =
     it('should error if JSON contains a function reference not present in base FTL', () => {
         assert.throws(() => {
             JSONToFtl({ 'string-with-fn': { string: 'This is a { UNKNOWN() } in string' } }, 'string-with-fn = This is a string')
-        }, 'Different number of references in "string-with-fn" message.');
+        }, 'Could not determine type of "UNKNOWN" in message named "string-with-fn"');
+    });
+
+    it('should error if JSON contains a different number of references than the base FTL', () => {
+        assert.throws(() => {
+            JSONToFtl({ 'string-with-var': { string: 'This is a { foo } and a { NUMBER() } in string' } }, 'string-with-var = This is a { $foo } in string')
+        }, 'Different number of references in "string-with-var" message.');
     });
 });

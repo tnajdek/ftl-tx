@@ -1,8 +1,8 @@
 import {
 	Attribute, CallArguments, Comment, FunctionReference, Identifier, Message, MessageReference, NumberLiteral, Pattern, Placeable,
-	Resource, NamedArgument, SelectExpression, serialize, StringLiteral, TermReference, TextElement, VariableReference, Variant, parse
+	Resource, NamedArgument, SelectExpression, serialize, StringLiteral, Term, TermReference, TextElement, VariableReference, Variant, parse
 } from "@fluent/syntax";
-import { checkForNonPlurals, countSelectExpressions, extractReferences, defaults } from "./common.js";
+import { checkForNonPlurals, countSelectExpressions, extractReferences, defaults, builtInFunctions } from "./common.js";
 
 function parseArgumentStrings(string) {
 	if(string.trim().length === 0) {
@@ -25,15 +25,17 @@ function parseArgumentStrings(string) {
 	return { positional, named };
 }
 
-function guessReferenceType(JSONPlaceable, baseFTLMsg) {
-	const { variables, terms, msgRefs } = extractReferences(baseFTLMsg)
+function guessReferenceType(JSONPlaceable, baseFTLMsg, callArguments) {
+	const { variables, terms, msgRefs, fnRefs } = extractReferences(baseFTLMsg)
 
 	if (variables.has(JSONPlaceable)) {
 		return new VariableReference(new Identifier(JSONPlaceable));
 	} else if (terms.has(JSONPlaceable)) {
-		return new TermReference(new Identifier(JSONPlaceable));
+		return callArguments ? new TermReference(new Identifier(JSONPlaceable), null, callArguments) : new TermReference(new Identifier(JSONPlaceable));
 	} else if (msgRefs.has(JSONPlaceable)) {
 		return new MessageReference(new Identifier(JSONPlaceable));
+	} else if (fnRefs.has(JSONPlaceable) || builtInFunctions.has(JSONPlaceable)) {
+		return new FunctionReference(new Identifier(JSONPlaceable), callArguments);
 	} else {
 		throw new Error(`Could not determine type of "${JSONPlaceable}" in message named "${baseFTLMsg.id.name}"`);
 	}
@@ -50,7 +52,7 @@ function parseString(string, baseFTLMsg, opts = {}) {
 		const [bracketedContent,] = match;
 		
 		const selectorRegex = /^\{\s*(?<selector>\w+)(?<args>\((?:\$?\w+(?:,\s+)?)*(?:\w+:\s+(?:"\w*?"|\d+)(?:,\s+)?)*\))?\s*,\s*(?<type>plural|select)\s*,\s*(?<variants>(?:(?!^\{).)*)\}$/s;
-		const functionRegex = /\{\s*(?<fn>\w+)(?<args>\((?:\$?\w+(?:,\s+)?)*(?:\w+:\s+(?:"\w*?"|\d+)(?:,\s+)?)*\))\s*\}/s;
+		const refWithArgsRegex = /\{\s*(?<ref>[\w\-_]+)(?<args>\((?:\$?\w+(?:,\s+)?)*(?:\w+:\s+(?:"\w*?"|\d+)(?:,\s+)?)*\))\s*\}/s;
 
 		if (match.index > start) {
 			elements.push(new TextElement(string.slice(start, match.index)));
@@ -109,20 +111,14 @@ function parseString(string, baseFTLMsg, opts = {}) {
 			}
 
 			elements.push(new Placeable(new SelectExpression(ftlSelector, ftlVariants)));
-		} else if(functionRegex.test(bracketedContent)) {
-			const { fn, args } = bracketedContent.match(functionRegex).groups;
+		} else if(refWithArgsRegex.test(bracketedContent)) {
+			const { ref, args } = bracketedContent.match(refWithArgsRegex).groups;
 			const { positional, named } = parseArgumentStrings(args.slice(1, -1));
-			elements.push(
-				new Placeable(
-					new FunctionReference(
-						new Identifier(fn),
-						new CallArguments(
-							positional.map(id => guessReferenceType(id, baseFTLMsg)),
-							named.map(([name, value]) => new NamedArgument(new Identifier(name), value == parseInt(value) ? new NumberLiteral(value) : new StringLiteral(value)))
-						)
-					)
-				)
+			const callArguments = new CallArguments(
+				positional.map(id => guessReferenceType(id, baseFTLMsg)),
+				named.map(([name, value]) => new NamedArgument(new Identifier(name), value == parseInt(value) ? new NumberLiteral(value) : new StringLiteral(value)))
 			);
+			elements.push(new Placeable(guessReferenceType(ref, baseFTLMsg, callArguments)));
 		} else {
 			const varName = bracketedContent.trim().slice(1, -1).trim();
 			elements.push(new Placeable(guessReferenceType(varName, baseFTLMsg)));
@@ -195,7 +191,10 @@ export function JSONToFtl(json, baseFTL, opts = {}) {
 		if(attr) {
 			ftl.body.find(m => m.id.name === msgName)?.attributes.push(new Attribute(attrID, pattern)) || ftl.body.push(new Message(msgID, null, [new Attribute(attrID, pattern)], comment));
 		} else {
-			ftl.body.push(new Message(msgID, pattern, [], comment));
+			ftl.body.push(isTermDefinition ?
+				new Term(new Identifier(msgName.slice(1)), pattern, [], comment) :
+				new Message(msgID, pattern, [], comment)
+			);
 		}
 	}
 
