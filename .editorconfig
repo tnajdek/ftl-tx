@@ -1,12 +1,6 @@
 [*.js]
 indent_style = tab
 
-[*.scss]
-indent_style = tab
-
-[*.svg]
-indent_style = tab
-
 [test/*.test.js]
 indent_style = space
 indent_size = 4

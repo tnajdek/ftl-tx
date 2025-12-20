@@ -20,13 +20,13 @@ See `tests/translate.test.js` for various use cases.
 A limited set of features is supported, specifically:
 
 * attributes are translated into new messages, with the attribute name concatenated with the message key to create a new message key
-* fluent [functions](https://projectfluent.org/fluent/guide/functions.html)  (including [built-in functions](https://projectfluent.org/fluent/guide/builtins.html)) will be correctly transcoded to ICU and back, including when used as selectors, but obviously won't work in ICU format.
+* fluent [functions](https://projectfluent.org/fluent/guide/functions.html) (including [built-in functions](https://projectfluent.org/fluent/guide/builtins.html)) will be correctly translated to ICU and back, including when used as selectors, but won't work in ICU format.
 * All comments are ignored, except for [message-bound comments](https://projectfluent.org/fluent/guide/comments.html) prefixed `tx: `
 * Message nesting level is limited to 10 levels (using a variable/reference inside a variant value "costs" 0.5 level). This value is configurable and can be increased at a slight performance cost
 
 ## Configuration 
 
-* `addTermsToFTL`, whether to include terms in produced FTL file, defaults to `true`
+* `addTermsToFTL`, whether to include terms in a produced FTL file, defaults to `true`
 * `commentPrefix`, prefix used for comments, defaults to `tx:`
 * `nestLimit`, maximum message nesting level, defaults to 10
 * `skipRefOnly`, whether to exclude from JSON output messages that only include a reference (to another message or to a term/variable)
