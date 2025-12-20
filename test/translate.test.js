@@ -423,4 +423,22 @@ instruction = Press { -option-or-left-alt(platform: "macos") } key to open the m
             }
         );
     });
+    it('should convert a message with select and attribute that also contains select', () => {
+        convert(
+`note-info-parent-item-button =
+    { $hasParentItem ->
+        [true] { $parentItemTitle }
+       *[false] None
+    }
+    .title =
+        { $hasParentItem ->
+            [true] View parent item in library
+           *[false] View note item in library
+        }`,
+            {
+                'note-info-parent-item-button': {string: '{hasParentItem, select, true {{ parentItemTitle }} false {None}}'},
+                'note-info-parent-item-button.title': {string: '{hasParentItem, select, true {View parent item in library} false {View note item in library}}'}
+            }
+        );
+    });
 });
