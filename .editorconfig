@@ -1,4 +1,4 @@
-[*.js]
+[*.{js,mjs}]
 indent_style = tab
 
 [test/*.test.js]

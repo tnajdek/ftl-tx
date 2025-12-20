@@ -1,4 +1,3 @@
-/* eslint-env mocha */
 // @NOTE: This file uses spaces for indentation, not tabs.
 //        This is because FTL requires spaces for indentation
 //        and this file contains ftl strings. 
