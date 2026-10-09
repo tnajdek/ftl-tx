@@ -325,6 +325,28 @@ deeply-nested =
                 'string-with-fn': { string: '{DATE(update), select, today {carpe diem} other {lorem ipsum}}' }
             }
         );
+
+        convert(
+`string-with-fn =
+    { NUMBER($count, maximumFractionDigits: 0) ->
+        [one] { $count } item selected
+       *[other] { $count } items selected
+    }`,
+            {
+                'string-with-fn': { string: '{NUMBER(count, maximumFractionDigits: 0), plural, one {{ count } item selected} other {{ count } items selected}}' }
+            }
+        );
+
+        convert(
+`string-with-fn =
+    { NUMBER($count, minimumIntegerDigits: "2") ->
+        [one] { $count } item selected
+       *[other] { $count } items selected
+    }`,
+            {
+                'string-with-fn': { string: '{NUMBER(count, minimumIntegerDigits: "2"), plural, one {{ count } item selected} other {{ count } items selected}}' }
+            }
+        );
     });
     
     it('should convert a message with a message reference', () => {
@@ -419,6 +441,14 @@ instruction = Press { -option-or-left-alt(platform: "macos") } key to open the m
             {
                 '-option-or-left-alt': { string: '{platform, select, macos {{ general-key-option }} other {Left { general-key-alt }}}' },
                 'instruction': { string: 'Press { option-or-left-alt(platform: "macos") } key to open the menu.' }
+            }
+        );
+        convert(
+`-key-instruction = Press { $number } to add an annotation
+instruction = { -key-instruction(number: "1") } or { -key-instruction(number: 2) }`,
+            {
+                '-key-instruction': { string: 'Press { number } to add an annotation' },
+                'instruction': { string: '{ key-instruction(number: "1") } or { key-instruction(number: 2) }' }
             }
         );
     });

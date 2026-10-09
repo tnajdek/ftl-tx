@@ -16,10 +16,8 @@ function parseArgumentStrings(string) {
 			let [k, v] = s.split(':');
 			k = k.trim();
 			v = v.trim();
-			if (v.startsWith('"') && v.endsWith('"')) {
-				v = v.slice(1, -1);
-			}
-			return [k, v];
+			const value = v.startsWith('"') && v.endsWith('"') ? new StringLiteral(v.slice(1, -1)) : new NumberLiteral(v);
+			return [k, value];
 		});
 		
 	return { positional, named };
@@ -103,7 +101,7 @@ function parseString(string, baseFTLMsg, opts = {}) {
 					new Identifier(selector),
 					new CallArguments(
 						positional.map(id => guessReferenceType(id, baseFTLMsg)),
-						named.map(([name, value]) => new NamedArgument(new Identifier(name), new StringLiteral(value)))
+						named.map(([name, value]) => new NamedArgument(new Identifier(name), value))
 					)
 				);
 			} else {
@@ -116,7 +114,7 @@ function parseString(string, baseFTLMsg, opts = {}) {
 			const { positional, named } = parseArgumentStrings(args.slice(1, -1));
 			const callArguments = new CallArguments(
 				positional.map(id => guessReferenceType(id, baseFTLMsg)),
-				named.map(([name, value]) => new NamedArgument(new Identifier(name), value == parseInt(value) ? new NumberLiteral(value) : new StringLiteral(value)))
+				named.map(([name, value]) => new NamedArgument(new Identifier(name), value))
 			);
 			elements.push(new Placeable(guessReferenceType(ref, baseFTLMsg, callArguments)));
 		} else {

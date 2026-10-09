@@ -3,7 +3,7 @@ import { checkForNonPlurals, extractReferences, defaults } from "./common.js";
 
 function stringifyRefWithArguments(fnRef) {
 	const needsSeparator = fnRef.arguments.positional.length && fnRef.arguments.named.length;
-	return `${fnRef.id.name}(${fnRef.arguments.positional.map(pos => pos.id.name).join(', ')}${needsSeparator ? ', ' : ''}${fnRef.arguments.named.map(nm => nm.value.value == parseInt(nm.value.value) ? `${nm.name.name}: ${nm.value.value}` : `${nm.name.name}: "${nm.value.value}"`).join(', ')})`
+	return `${fnRef.id.name}(${fnRef.arguments.positional.map(pos => pos.id.name).join(', ')}${needsSeparator ? ', ' : ''}${fnRef.arguments.named.map(nm => nm.value.type === 'NumberLiteral' ? `${nm.name.name}: ${nm.value.value}` : `${nm.name.name}: "${nm.value.value}"`).join(', ')})`
 }
 
 
