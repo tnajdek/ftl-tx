@@ -14,9 +14,6 @@ function walkFTLTree(node, fn, ...args) {
 			(node.value?.elements ?? []).forEach(e => walkFTLTree(e, fn, args));
 			node.attributes.forEach(a => walkFTLTree(a.value, fn, args));
 			break;
-		case 'Attribute':
-			walkFTLTree(node.value, fn, args);
-			break;
 		case 'SelectExpression':
 			walkFTLTree(node.selector, fn, args);
 			node.variants.forEach(v => walkFTLTree(v, fn, args));
