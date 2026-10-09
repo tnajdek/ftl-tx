@@ -2,7 +2,7 @@ import {
 	Attribute, CallArguments, Comment, FunctionReference, Identifier, Message, MessageReference, NumberLiteral, Pattern, Placeable,
 	Resource, NamedArgument, SelectExpression, serialize, StringLiteral, Term, TermReference, TextElement, VariableReference, Variant, parse
 } from "@fluent/syntax";
-import { checkForNonPlurals, countSelectExpressions, extractReferences, defaults, builtInFunctions } from "./common.js";
+import { checkForNonPlurals, extractReferences, extractSelectors, defaults, builtInFunctions } from "./common.js";
 
 function parseArgumentStrings(string) {
 	if(string.trim().length === 0) {
@@ -164,10 +164,6 @@ export function JSONToFtl(json, baseFTL, opts = {}) {
 		const elements = parseString(json[key]?.string.trim(), baseFTLMsg, opts);
 		const pattern = new Pattern(elements);
 
-		if (countSelectExpressions(pattern) !== countSelectExpressions(baseFTLRootOrAttr)) {
-			throw new Error(`Different number of select/plural expressions in "${key}" message.`);
-		}
-
 		const patternRefs = extractReferences(pattern);
 		const baseRefs = extractReferences(baseFTLRootOrAttr.value);
 
@@ -185,6 +181,14 @@ export function JSONToFtl(json, baseFTL, opts = {}) {
 
 		if (parsedFTLRefCount !== baseFTLRefCount) {
 			throw new Error(`Different number of references in "${key}" message.`);
+		}
+
+		// A translation can add plural variants, each repeating any nested select expressions, so
+		// compare the set of selectors
+		const patternSelectors = extractSelectors(pattern);
+		const baseSelectors = extractSelectors(baseFTLRootOrAttr);
+		if (patternSelectors.size !== baseSelectors.size || [...baseSelectors].some(s => !patternSelectors.has(s))) {
+			throw new Error(`Different select/plural expressions in "${key}" message.`);
 		}
 
 		const comment = json[key]?.developer_comment ? new Comment(`tx: ${json[key].developer_comment}`) : null;

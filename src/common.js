@@ -1,3 +1,5 @@
+import { serializeExpression } from "@fluent/syntax";
+
 export function checkForNonPlurals(ftlVariants) {
 	const allowedPlurals = ['zero', 'one', 'two', 'few', 'many', 'other'];
 	return ftlVariants.find(v => v.key.type !== 'NumberLiteral' && !allowedPlurals.includes(v.key.name));
@@ -62,28 +64,28 @@ export function extractReferences(rootNode) {
 	return { variables, terms, msgRefs, fnRefs };
 }
 
-export function countSelectExpressions(rootNode) {
-	let count = 0;
+export function extractSelectors(rootNode) {
+	const selectors = new Set();
 	
-	let countFn = node => {
+	let collectFn = node => {
 		if (node.type === 'SelectExpression') {
-			count++;
+			selectors.add(serializeExpression(node.selector));
 		}
 	}
 	
 	switch (rootNode.type) {
 		case 'Term':
 		case 'Message':
-			(rootNode.value?.elements ?? []).forEach(e => walkFTLTree(e, countFn));
+			(rootNode.value?.elements ?? []).forEach(e => walkFTLTree(e, collectFn));
 			break;
 		case 'Pattern':
-			rootNode.elements.forEach(e => walkFTLTree(e, countFn));
+			rootNode.elements.forEach(e => walkFTLTree(e, collectFn));
 			break;
 		case 'Attribute':
-			walkFTLTree(rootNode.value, countFn);
+			walkFTLTree(rootNode.value, collectFn);
 			break;
 	}
-	return count;
+	return selectors;
 }
 
 export const defaults = {

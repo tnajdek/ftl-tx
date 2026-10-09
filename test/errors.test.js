@@ -93,7 +93,7 @@ string-with-plurals = I have { $num ->
         , 'Duplicate reference found! Names must be unique between different reference types in the "string-with-var-and-term" message.');
     });
 
-    it('should error if JSON has different number of select/plural expressions than base FTL', () => {
+    it('should error if JSON has different select/plural expressions than base FTL', () => {
         assert.throws(() => {
             JSONToFtl({ 'string-with-plurals': { string: 'num, plural, one { num } file other { num } files' } },
 `string-with-plurals = 
@@ -102,7 +102,7 @@ string-with-plurals = I have { $num ->
        *[other] { $num } files
     }`
             )
-        }, 'Different number of select/plural expressions in "string-with-plurals" message.');
+        }, 'Different select/plural expressions in "string-with-plurals" message.');
 
         assert.throws(() => {
             JSONToFtl({ 'string-with-many-plurals': { string: '{num, plural, one { num } file other { num } files} and { count }' } },
@@ -115,14 +115,14 @@ string-with-plurals = I have { $num ->
         *[other] many
     }`
             )
-        }, 'Different number of select/plural expressions in "string-with-many-plurals" message.');
+        }, 'Different select/plural expressions in "string-with-many-plurals" message.');
 
         assert.throws(() => {
             JSONToFtl(
                 { 'string-with-no-plurals': { string: '{num, plural, one {{ num } file} other {{ num } files}}' } },
                 `string-with-no-plurals = { $num }, plural, one { $num } file other { $num } files`
             )
-        }, 'Different number of select/plural expressions in "string-with-no-plurals" message.');
+        }, 'Different select/plural expressions in "string-with-no-plurals" message.');
 
         // different number of variants is OK
         assert.doesNotThrow(() => {
@@ -135,6 +135,45 @@ string-with-plurals = I have { $num ->
     }`
             )
         });
+
+        // additional plural variant with a nested select is OK
+        assert.doesNotThrow(() => {
+            JSONToFtl(
+                { 'string-with-nested-select': { string: '{num, plural, one {{type, select, pdf {PDF} other {file}}} few {{type, select, pdf {PDFs} other {files}}} other {{type, select, pdf {PDFs} other {files}}}}' } },
+`string-with-nested-select =
+    { $num ->
+        [one]
+            { $type ->
+                [pdf] PDF
+               *[other] file
+            }
+       *[other]
+            { $type ->
+                [pdf] PDFs
+               *[other] files
+            }
+    }`
+            )
+        });
+
+        assert.throws(() => {
+            JSONToFtl(
+                { 'string-with-nested-select': { string: '{num, plural, one {{num, plural, one {PDF} other {file}}} other {{num, plural, one {PDFs} other {files}}}} { type }' } },
+`string-with-nested-select =
+    { $num ->
+        [one]
+            { $type ->
+                [pdf] PDF
+               *[other] file
+            }
+       *[other]
+            { $type ->
+                [pdf] PDFs
+               *[other] files
+            }
+    }`
+            )
+        }, 'Different select/plural expressions in "string-with-nested-select" message.');
     });
 
     it('should error if JSON is missing references from base FTL', () => {
